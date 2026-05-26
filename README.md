@@ -19,10 +19,7 @@ npm install
 ```
 
 ### 2. Configure Firebase
-Copy `.env.local.example` to `.env.local` and fill in your Firebase config:
-```bash
-cp .env.local.example .env.local
-```
+Create`.env.local` and fill in your Firebase config:
 
 ### 3. Create admin user in Firestore
 In your Firebase console, add a document to the `admins` collection:
