@@ -6,7 +6,8 @@ import { Withdrawal } from '@/types'
 import { StatusBadge, EmptyState, TableSkeleton, StatsCard, ConfirmDialog } from '@/components/shared'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { toast } from 'sonner'
-import { Wallet, Search, RefreshCw, CheckCircle, XCircle, CreditCard } from 'lucide-react'
+import { Wallet, Search, RefreshCw, CheckCircle, XCircle, CreditCard, Download } from 'lucide-react'
+import { exportToCSV } from '@/lib/export'
 
 type FilterStatus = 'all' | 'pending' | 'approved' | 'rejected' | 'paid'
 

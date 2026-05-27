@@ -5,7 +5,8 @@ import { db } from '@/lib/firebase'
 import { Delivery } from '@/types'
 import { StatusBadge, EmptyState, TableSkeleton } from '@/components/shared'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { Package, Search } from 'lucide-react'
+import { Package, Search, Download, RefreshCw } from 'lucide-react'
+import { exportToCSV } from '@/lib/export'
 
 type DeliveryFilter = 'all' | 'pending' | 'driverAssigned' | 'completed' | 'cancelled'
 
@@ -57,6 +58,15 @@ export default function DeliveriesPage() {
         <div>
           <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)' }}>Deliveries</h1>
           <p style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>{deliveries.length} delivery orders</p>
+        </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={() => exportToCSV(filtered.map(d => ({ id: d.id, status: d.status, pickup: d.pickupAddress, dropoff: d.dropoffAddress, parcel: d.parcelType, driver: d.driverName || '', fare: d.actualFare || d.estimatedFare || 0 })), 'deliveries')}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(22,163,74,0.12)', border: '1px solid rgba(22,163,74,0.2)', borderRadius: '8px', padding: '8px 14px', color: '#4ade80', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
+            <Download size={14} /> Export CSV
+          </button>
+          <button onClick={load} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--surface-alt)', border: '1px solid var(--border)', borderRadius: '8px', padding: '8px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+            <RefreshCw size={14} />
+          </button>
         </div>
       </div>
 

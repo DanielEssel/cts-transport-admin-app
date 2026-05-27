@@ -40,9 +40,10 @@ export default function DriversPage() {
 
   useEffect(() => {
     let result = drivers
-    if (filter === 'pending') result = result.filter(d => !d.isApproved && d.signupStep !== 'suspended')
+    if (filter === 'pending') result = result.filter(d => !d.isApproved && d.signupStep !== 'suspended' && d.signupStep !== 'rejected' && (d.signupStep === 'documents_submitted' || d.signupStep === 'pending_review' || Object.keys(d.documents || {}).length > 0))
     if (filter === 'approved') result = result.filter(d => d.isApproved)
     if (filter === 'suspended') result = result.filter(d => d.signupStep === 'suspended')
+    if (filter === 'rejected')  result = result.filter(d => d.signupStep === 'rejected' || d.documentsRejected)
     if (serviceFilter !== 'all') result = result.filter(d => d.serviceType === serviceFilter)
     if (search) {
       const q = search.toLowerCase()
@@ -108,6 +109,7 @@ export default function DriversPage() {
     { key: 'pending', label: 'Pending', count: drivers.filter(d => !d.isApproved && d.signupStep !== 'suspended').length },
     { key: 'approved', label: 'Approved', count: drivers.filter(d => d.isApproved).length },
     { key: 'suspended', label: 'Suspended', count: drivers.filter(d => d.signupStep === 'suspended').length },
+    { key: 'rejected',  label: 'Rejected',  count: drivers.filter(d => d.signupStep === 'rejected' || d.documentsRejected).length },
   ]
 
   return (

@@ -36,9 +36,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (!user || !admin) return null
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
+    <div style={{ display: 'flex', height: '100vh', background: 'var(--bg)', overflow: 'hidden' }}>
       {/* Desktop Sidebar */}
-      <div style={{ width: '240px', flexShrink: 0, display: 'flex', position: 'sticky', top: 0, height: '100vh' }}>
+      <div style={{ width: '240px', flexShrink: 0, position: 'sticky', top: 0, height: '100vh', alignSelf: 'flex-start' }}>
         <Sidebar />
       </div>
 
@@ -53,7 +53,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Main */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100vh', overflow: 'hidden' }}>
         {/* Topbar */}
         <header style={{
           height: '60px', background: 'var(--surface)', borderBottom: '1px solid var(--border)',
@@ -101,7 +101,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page content */}
-        <main style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
+        <main style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '24px' }}>
           {children}
         </main>
       </div>

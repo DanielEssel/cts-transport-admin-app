@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { useRouter } from 'next/navigation'
@@ -7,6 +8,7 @@ import {
   LayoutDashboard, Users, UserCheck, Car, Package,
   Flame, Wallet, Bell, Settings, LogOut, X, ChevronRight
 } from 'lucide-react'
+import { MapPin, Headphones, Tag, ClipboardList } from 'lucide-react'
 
 const links = [
   { href: '/dashboard',      icon: LayoutDashboard, label: 'Dashboard' },
@@ -17,6 +19,10 @@ const links = [
   { href: '/gas-orders',     icon: Flame,           label: 'Gas Orders' },
   { href: '/withdrawals',    icon: Wallet,          label: 'Withdrawals' },
   { href: '/notifications',  icon: Bell,            label: 'Notifications' },
+  { href: '/live-map',       icon: MapPin,          label: 'Live Map' },
+  { href: '/support',        icon: Headphones,  label: 'Support' },
+  { href: '/promotions',     icon: Tag,             label: 'Promotions' },
+  { href: '/audit-log',      icon: ClipboardList,   label: 'Audit Log' },
   { href: '/settings',       icon: Settings,        label: 'Settings' },
 ]
 
@@ -25,9 +31,31 @@ interface SidebarProps {
 }
 
 export function Sidebar({ onClose }: SidebarProps) {
-  const pathname = usePathname()
+  const pathname  = usePathname()
   const { admin, signOut } = useAuth()
-  const router = useRouter()
+  const router    = useRouter()
+  const [pendingDrivers, setPendingDrivers] = useState(0)
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const { collection, getDocs, query, where } = await import('firebase/firestore')
+        const { db } = await import('@/lib/firebase')
+        const snap = await getDocs(query(
+          collection(db, 'drivers'),
+          where('isApproved', '==', false),
+        ))
+        const pending = snap.docs.filter(d => {
+          const data = d.data()
+          return data.signupStep !== 'suspended' && Object.keys(data.documents || {}).length > 0
+        }).length
+        setPendingDrivers(pending)
+      } catch {}
+    }
+    load()
+    const interval = setInterval(load, 30000) // refresh every 30s
+    return () => clearInterval(interval)
+  }, [])
 
   const handleSignOut = async () => {
     await signOut()
@@ -37,8 +65,8 @@ export function Sidebar({ onClose }: SidebarProps) {
   return (
     <div style={{
       width: '240px', height: '100vh', background: '#070d0f',
-      borderRight: '1px solid #0f1923', display: 'flex', flexDirection: 'column',
-      padding: '20px 12px', flexShrink: 0, position: 'relative'
+      borderRight: '1px solid #1e293b', display: 'flex', flexDirection: 'column',
+      padding: '20px 12px', flexShrink: 0, overflowY: 'auto', overflowX: 'hidden'
     }}>
       {onClose && (
         <button onClick={onClose} style={{
@@ -89,7 +117,14 @@ export function Sidebar({ onClose }: SidebarProps) {
             >
               <Icon size={16} style={{ flexShrink: 0, opacity: active ? 1 : 0.7 }} />
               {label}
-              {active && <ChevronRight size={14} style={{ marginLeft: 'auto', opacity: 0.6 }} />}
+              {label === 'Drivers' && pendingDrivers > 0 && (
+                <span style={{
+                  marginLeft: 'auto', background: '#ef4444', color: '#fff',
+                  borderRadius: '10px', padding: '1px 6px',
+                  fontSize: '10px', fontWeight: 700, minWidth: '18px', textAlign: 'center'
+                }}>{pendingDrivers}</span>
+              )}
+              {active && label !== 'Drivers' && <ChevronRight size={14} style={{ marginLeft: 'auto', opacity: 0.6 }} />}
             </Link>
           )
         })}
