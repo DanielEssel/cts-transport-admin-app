@@ -211,6 +211,21 @@ export function DriverDetailModal({ driver, onClose, onApprove, onReject, onSusp
                                 </a>
                               )}
                             </div>
+                            {value?.expiryDate && (() => {
+                              const expiry = value.expiryDate?.toDate ? value.expiryDate.toDate() : new Date(value.expiryDate.seconds * 1000)
+                              const isExpired = expiry < new Date()
+                              const isSoon    = !isExpired && (expiry.getTime() - Date.now()) < 30 * 24 * 60 * 60 * 1000
+                              return (
+                                <div style={{ marginTop: '5px', fontSize: '10px', fontWeight: 600, color: isExpired ? '#f87171' : isSoon ? '#fbbf24' : '#94a3b8' }}>
+                                  {isExpired ? '⚠️ EXPIRED' : isSoon ? '⚠️ Expires soon'  : '✓ Expires'}: {expiry.toLocaleDateString('en-GH')}
+                                </div>
+                              )
+                            })()}
+                            {value?.rejectionReason && (
+                              <div style={{ marginTop: '5px', fontSize: '10px', color: '#f87171', fontWeight: 600 }}>
+                                ✗ {value.rejectionReason}
+                              </div>
+                            )}
                           </div>
                         </div>
                       )

@@ -29,8 +29,14 @@ export default function DriversPage() {
   const loadDrivers = useCallback(async () => {
     setLoading(true)
     try {
-      const snap = await getDocs(query(collection(db, 'drivers'), orderBy('createdAt', 'desc')))
+      const snap = await getDocs(collection(db, 'drivers'))
       const data = snap.docs.map(d => ({ uid: d.id, ...d.data() })) as Driver[]
+      // Sort by submittedForReviewAt or updatedAt — newest first
+      data.sort((a: any, b: any) => {
+        const aTime = a.submittedForReviewAt?.seconds || a.updatedAt?.seconds || 0
+        const bTime = b.submittedForReviewAt?.seconds || b.updatedAt?.seconds || 0
+        return bTime - aTime
+      })
       setDrivers(data)
     } catch (e) { toast.error('Failed to load drivers') }
     finally { setLoading(false) }
@@ -40,7 +46,7 @@ export default function DriversPage() {
 
   useEffect(() => {
     let result = drivers
-    if (filter === 'pending') result = result.filter(d => !d.isApproved && d.signupStep !== 'suspended' && d.signupStep !== 'rejected' && (d.signupStep === 'documents_submitted' || d.signupStep === 'pending_review' || Object.keys(d.documents || {}).length > 0))
+    if (filter === 'pending') result = result.filter(d => !d.isApproved && d.signupStep !== 'suspended' && d.signupStep !== 'rejected' && d.signupStep !== 'approved' && (d.documentsUploaded === true || d.signupStep === 'documentsUploaded' || d.signupStep === 'pendingApproval' || d.signupStep === 'documents_submitted' || d.signupStep === 'pending_review'))
     if (filter === 'approved') result = result.filter(d => d.isApproved)
     if (filter === 'suspended') result = result.filter(d => d.signupStep === 'suspended')
     if (filter === 'rejected')  result = result.filter(d => d.signupStep === 'rejected' || d.documentsRejected)

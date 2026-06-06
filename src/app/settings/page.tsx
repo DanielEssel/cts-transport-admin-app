@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { toast } from 'sonner'
-import { Save, Settings, Percent, Car, Package, Flame, ChevronDown, ChevronUp, Info } from 'lucide-react'
+import { Save, Settings, Percent, Car, Package, Flame, ChevronDown, ChevronUp, Info, Database } from 'lucide-react'
+import { httpsCallable } from 'firebase/functions'
+import { functions } from '@/lib/firebase'
 
 interface RidePricing {
   baseFare: number
@@ -324,6 +326,46 @@ export default function SettingsPage() {
           <Toggle label="Maintenance Mode" desc="Show maintenance screen to all app users — use with caution" value={settings.maintenanceMode} onChange={v => set('maintenanceMode', v)} />
         </div>
       </Section>
+
+      {/* One-time Migration */}
+      <div style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: '16px', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <Database size={18} style={{ color: '#fbbf24' }} />
+          <div>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>Wallet Migration</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Add heldBalance to existing wallets and create driver wallets. Safe to run multiple times.</div>
+          </div>
+        </div>
+        <button onClick={async () => {
+          if (!confirm('Run wallet migration? This adds heldBalance field to all wallets.')) return
+          try {
+            const { collection, getDocs, writeBatch, doc } = await import('firebase/firestore')
+            const { db } = await import('@/lib/firebase')
+            const snap = await getDocs(collection(db, 'wallets'))
+            let count = 0
+            // Process in batches of 500
+            const BATCH = 500
+            let batch = writeBatch(db)
+            let i = 0
+            for (const d of snap.docs) {
+              if (d.data().heldBalance === undefined) {
+                batch.update(doc(db, 'wallets', d.id), { heldBalance: 0 })
+                count++
+                i++
+                if (i >= BATCH) {
+                  await batch.commit()
+                  batch = writeBatch(db)
+                  i = 0
+                }
+              }
+            }
+            if (i > 0) await batch.commit()
+            alert(`✅ Migration complete: ${count} wallets updated`)
+          } catch (e: any) { alert('Failed: ' + e.message) }
+        }} style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: '#fbbf24', color: '#000', cursor: 'pointer', fontSize: '13px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+          Run Migration
+        </button>
+      </div>
 
       {/* Save button at bottom too */}
       <button onClick={handleSave} disabled={saving} style={{
