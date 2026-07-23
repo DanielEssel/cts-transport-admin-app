@@ -58,7 +58,7 @@ export default function LoginPage() {
             fontSize: '28px', fontWeight: 800,
             color: 'var(--text-primary)',
             letterSpacing: '-0.5px', marginBottom: '6px'
-          }}>CTSRide Admin</h1>
+          }}>CTSTransport Admin</h1>
           <p style={{ color: 'var(--text-tertiary)', fontSize: '14px' }}>
             Secure administrative access
           </p>
@@ -82,7 +82,7 @@ export default function LoginPage() {
               </label>
               <input
                 type="email" value={email} onChange={e => setEmail(e.target.value)}
-                required placeholder="admin@ctsride.com"
+                required placeholder="admin@ctstransport.com"
                 style={{
                   width: '100%', padding: '12px 14px', borderRadius: '10px',
                   background: 'var(--surface-alt)', border: '1px solid var(--border)',
@@ -132,7 +132,7 @@ export default function LoginPage() {
         </div>
 
         <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '12px', color: 'var(--text-tertiary)' }}>
-          CTSRide Admin Panel v1.0 · Restricted Access
+          CTSTransport Admin Panel v1.0 · Restricted Access
         </p>
       </div>
     </div>

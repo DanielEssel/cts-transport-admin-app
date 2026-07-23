@@ -49,12 +49,27 @@ export default function LiveMapPage() {
   const [mapLoaded, setMapLoaded]   = useState(false)
   const [stats, setStats] = useState({ online: 0, available: 0, onTrip: 0 })
 
-  // Load Google Maps
+  // Load Google Maps — guarded against double-injection (StrictMode re-mounts,
+  // client-side navigation back to this page).
   useEffect(() => {
-    if (window.google) { initMap(); return }
+    // Already fully loaded → just init.
+    if (window.google?.maps) { initMap(); return }
+
+    // Script already in the DOM (loading) → wait for it, don't add another.
+    const existing = document.querySelector<HTMLScriptElement>(
+      'script[data-google-maps="true"]'
+    )
+    if (existing) {
+      existing.addEventListener('load', initMap, { once: true })
+      return
+    }
+
+    const key = process.env.NEXT_PUBLIC_MAPS_API_KEY ?? ''
     const script = document.createElement('script')
-    script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyAFqi7QoQAL5oOPlV6P4ZTNQT4IeRKCbeU&libraries=places`
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`
     script.async = true
+    script.defer = true
+    script.dataset.googleMaps = 'true' // marker so re-mounts detect it
     script.onload = initMap
     document.head.appendChild(script)
   }, [])

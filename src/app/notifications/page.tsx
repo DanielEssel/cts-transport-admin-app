@@ -98,7 +98,7 @@ export default function NotificationsPage() {
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
             <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '8px' }}>Title</label>
-            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Important Update from CTSRide"
+            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Important Update from CTSTransport"
               style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', background: 'var(--surface-alt)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }}
             />
           </div>

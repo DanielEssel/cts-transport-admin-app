@@ -4,8 +4,8 @@ import { AuthProvider } from '@/lib/auth-context'
 import { Toaster } from 'sonner'
 
 export const metadata: Metadata = {
-  title: 'CTSRide Admin',
-  description: 'CTSRide Platform Administration Dashboard',
+  title: 'CTSTransport Admin',
+  description: 'CTSTransport Platform Administration Dashboard',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

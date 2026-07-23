@@ -92,7 +92,7 @@ export function Sidebar({ onClose }: SidebarProps) {
             </svg>
           </div>
           <div>
-            <div style={{ fontFamily: "'Syne', sans-serif", fontSize: '15px', fontWeight: 800, color: '#f1f5f9', lineHeight: 1 }}>CTSRide</div>
+            <div style={{ fontFamily: "'Syne', sans-serif", fontSize: '15px', fontWeight: 800, color: '#f1f5f9', lineHeight: 1 }}>CT</div>
             <div style={{ fontSize: '10px', color: '#4ade80', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Admin Panel</div>
           </div>
         </div>
