@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
-import { collection, getDocs, query, where, orderBy, doc, updateDoc } from 'firebase/firestore'
+import { collection, getDocs, doc, updateDoc } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 import { db, functions } from '@/lib/firebase'
 import { Driver } from '@/types'
@@ -10,7 +10,8 @@ import { toast } from 'sonner'
 import { UserCheck, Search, Filter, CheckCircle, XCircle, Ban, RefreshCw, Eye } from 'lucide-react'
 import { DriverDetailModal } from '@/components/features/DriverDetailModal'
 
-type FilterType = 'all' | 'pending' | 'approved' | 'suspended'
+
+type FilterType = 'all' | 'pending' | 'approved' | 'suspended' | 'rejected'
 type ServiceFilter = 'all' | 'okada' | 'taxi' | 'delivery'
 
 export default function DriversPage() {
@@ -46,10 +47,10 @@ export default function DriversPage() {
 
   useEffect(() => {
     let result = drivers
-    if (filter === 'pending') result = result.filter(d => !d.isApproved && d.signupStep !== 'suspended' && d.signupStep !== 'rejected' && d.signupStep !== 'approved' && (d.documentsUploaded === true || d.signupStep === 'documentsUploaded' || d.signupStep === 'pendingApproval' || d.signupStep === 'documents_submitted' || d.signupStep === 'pending_review'))
+    if (filter === 'pending') result = result.filter(d => !d.isApproved && d.signupStep !== 'suspended' && d.signupStep !== 'rejected' && d.signupStep !== 'approved' && (d.signupStep === 'documentsUploaded' || d.signupStep === 'pendingApproval' || d.signupStep === 'documents_submitted' || d.signupStep === 'pending_review'))
     if (filter === 'approved') result = result.filter(d => d.isApproved)
     if (filter === 'suspended') result = result.filter(d => d.signupStep === 'suspended')
-    if (filter === 'rejected')  result = result.filter(d => d.signupStep === 'rejected' || d.documentsRejected)
+    if (filter === 'rejected')  result = result.filter(d => d.signupStep === 'rejected')
     if (serviceFilter !== 'all') result = result.filter(d => d.serviceType === serviceFilter)
     if (search) {
       const q = search.toLowerCase()
@@ -115,7 +116,7 @@ export default function DriversPage() {
     { key: 'pending', label: 'Pending', count: drivers.filter(d => !d.isApproved && d.signupStep !== 'suspended').length },
     { key: 'approved', label: 'Approved', count: drivers.filter(d => d.isApproved).length },
     { key: 'suspended', label: 'Suspended', count: drivers.filter(d => d.signupStep === 'suspended').length },
-    { key: 'rejected',  label: 'Rejected',  count: drivers.filter(d => d.signupStep === 'rejected' || d.documentsRejected).length },
+    { key: 'rejected',  label: 'Rejected',  count: drivers.filter(d => d.signupStep === 'rejected').length },
   ]
 
   return (

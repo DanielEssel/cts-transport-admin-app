@@ -1,5 +1,7 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -41,4 +43,24 @@ export function timeAgo(date: any): string {
   const hrs = Math.floor(mins / 60)
   if (hrs < 24) return `${hrs}h ago`
   return `${Math.floor(hrs / 24)}d ago`
+}
+
+
+
+export async function logAudit(
+  adminUid: string,
+  adminEmail: string,
+  action: string,
+  targetType: string,
+  targetId: string,
+  details: string
+) {
+  try {
+    await addDoc(collection(db, 'audit_log'), {
+      adminUid, adminEmail, action, targetType, targetId, details,
+      createdAt: serverTimestamp(),
+    })
+  } catch (e) {
+    console.error('Audit log failed:', e)
+  }
 }

@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
-import { collection, getDocs, addDoc, query, orderBy, limit, serverTimestamp } from 'firebase/firestore'
+import { collection, getDocs, query, orderBy, limit} from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/lib/auth-context'
 import { EmptyState, TableSkeleton } from '@/components/shared'
@@ -33,18 +33,6 @@ const ACTION_COLORS: Record<string, string> = {
   delete_promotion:   '#f87171',
   update_settings:    '#94a3b8',
   resolve_ticket:     '#4ade80',
-}
-
-// Helper to log audit entries - export this and use in other pages
-export async function logAudit(adminUid: string, adminEmail: string, action: string, targetType: string, targetId: string, details: string) {
-  try {
-    await addDoc(collection(db, 'audit_log'), {
-      adminUid, adminEmail, action, targetType, targetId, details,
-      createdAt: serverTimestamp()
-    })
-  } catch (e) {
-    console.error('Audit log failed:', e)
-  }
 }
 
 export default function AuditLogPage() {

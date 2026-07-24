@@ -6,6 +6,8 @@ export interface Admin {
   active: boolean
 }
 
+
+
 export interface Driver {
   uid: string
   displayName: string
@@ -25,9 +27,17 @@ export interface Driver {
   todayEarnings: number
   completedTrips: number
   photoUrl?: string
-  documents?: Record<string, { status: string; url?: string; expiryDate?: any }>
+  documents?: Record<string, { status: string; url?: string; expiryDate?: any; rejectionReason?: string }>;
   createdAt?: any
   fcmToken?: string
+  documentsUploaded?: boolean
+  documentsRejected?: boolean
+  submittedForReviewAt?: any
+  updatedAt?: any
+  commissionOwed?: number
+  walletBalance?: number
+  termsAcceptedAt?: any
+  termsVersion?: string
 }
 
 export interface Passenger {
@@ -58,6 +68,12 @@ export interface Trip {
   completedAt?: any
   driverRating?: number
   passengerRating?: number
+  fareOverride?: boolean
+  distance?: number
+  paymentMethod?: string
+  cancelledAt?: any
+  cancellationReason?: string
+  updatedAt?: any
 }
 
 export interface Delivery {
@@ -73,6 +89,16 @@ export interface Delivery {
   estimatedFare: number
   actualFare?: number
   createdAt?: any
+  fareOverride?: boolean
+  receiverName?: string
+  receiverPhone?: string
+  notes?: string
+  isFragile?: boolean
+  requiresHelpers?: boolean
+  paymentMethod?: string
+  photoUrl?: string
+  completedAt?: any
+  updatedAt?: any
 }
 
 export interface GasOrder {
@@ -86,6 +112,11 @@ export interface GasOrder {
   deliveryAddress: string
   pickupAddress: string
   createdAt?: any
+  fareOverride?: boolean
+  driverName?: string
+  paymentMethod?: string
+  completedAt?: any
+  updatedAt?: any
 }
 
 export interface Withdrawal {
