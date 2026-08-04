@@ -2,12 +2,10 @@
 import { useEffect, useState } from 'react'
 import { collection, getDocs, query, where, orderBy, limit, Timestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { StatsCard, StatusBadge, Avatar, TableSkeleton } from '@/components/shared'
-import { formatCurrency, formatDate, timeAgo } from '@/lib/utils'
+import { StatsCard, StatusBadge, TableSkeleton } from '@/components/shared'
+import { formatCurrency, timeAgo } from '@/lib/utils'
 import {
-  Users, UserCheck, Car, Clock, Wallet, TrendingUp,
-  Package, Flame, CheckCircle
-} from 'lucide-react'
+  Users, UserCheck, Car, Clock, Wallet, TrendingUp} from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer

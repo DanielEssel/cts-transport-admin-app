@@ -1,8 +1,7 @@
 'use client'
 import { useState } from 'react'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
-import { db, functions } from '@/lib/firebase'
+import { functions } from '@/lib/firebase'
 import { toast } from 'sonner'
 import { Bell, Send, Users, UserCheck, User, CheckCircle } from 'lucide-react'
 
@@ -25,8 +24,8 @@ export default function NotificationsPage() {
     setResult(null)
     try {
       const broadcast = httpsCallable(functions, 'broadcastNotification')
-      const res = await broadcast({ title, message, target, userId }) as any
-      const data = res.data
+      const res = await broadcast({ title, message, target, userId })
+      const data = res.data as { success: boolean; sent: number; failed: number; message?: string }
 
       if (data.success) {
         toast.success(`Sent to ${data.sent} device${data.sent !== 1 ? 's' : ''}`)
@@ -35,8 +34,8 @@ export default function NotificationsPage() {
       } else {
         toast.error(data.message || 'No devices found')
       }
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to send')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to send')
     } finally {
       setSending(false)
     }
@@ -98,7 +97,7 @@ export default function NotificationsPage() {
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
             <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '8px' }}>Title</label>
-            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Important Update from CTSTransport"
+            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Important Update from CTS Transport"
               style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', background: 'var(--surface-alt)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }}
             />
           </div>

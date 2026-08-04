@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Menu, Bell, Search } from 'lucide-react'
+import { AdminAlertsBell } from '@/components/layout/AdminAlertsBell'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, admin, loading } = useAuth()
