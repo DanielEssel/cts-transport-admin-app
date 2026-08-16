@@ -73,6 +73,7 @@ interface PlatformSettings {
   // Ride pricing per service type
   okada: RidePricing;
   taxi: RidePricing;
+  pragyia: RidePricing;
 
   // Delivery
   delivery: DeliveryPricing;
@@ -111,6 +112,15 @@ const defaults: PlatformSettings = {
     perMinRate: 0.3,
     minimumFare: 10,
     cancellationFee: 3,
+    surgeMutiplier: 1.5,
+    surgeEnabled: false,
+  },
+  pragyia: {
+    baseFare: 4,
+    perKmRate: 2,
+    perMinRate: 0.25,
+    minimumFare: 8,
+    cancellationFee: 2.5,
     surgeMutiplier: 1.5,
     surgeEnabled: false,
   },
@@ -228,6 +238,7 @@ export default function SettingsPage() {
     { id: "platform", icon: <Percent size={16} />, label: "Platform" },
     { id: "okada", icon: <Car size={16} />, label: "Okada" },
     { id: "taxi", icon: <Car size={16} />, label: "Taxi" },
+    { id: "pragyia", icon: <Car size={16} />, label: "Pragyia" },
     { id: "delivery", icon: <Package size={16} />, label: "Delivery" },
     { id: "gas", icon: <Flame size={16} />, label: "Gas" },
     { id: "services", icon: <Settings size={16} />, label: "Services" },
@@ -767,6 +778,60 @@ export default function SettingsPage() {
               desc="Automatically increase fares during peak hours"
               value={settings.taxi.surgeEnabled}
               onChange={(v) => set("taxi.surgeEnabled", v)}
+            />
+          </div>
+        </Grid>
+      </Section>
+
+      {/* Pragyia pricing */}
+      <Section id="pragyia" icon={<Car size={18} />} title="Pragyia Pricing">
+        <Grid>
+          <Field
+            label="Base Fare"
+            value={settings.pragyia.baseFare}
+            unit="GH₵"
+            onChange={(v) => set("pragyia.baseFare", v)}
+          />
+          <Field
+            label="Per KM Rate"
+            value={settings.pragyia.perKmRate}
+            unit="GH₵"
+            onChange={(v) => set("pragyia.perKmRate", v)}
+            step={0.1}
+          />
+          <Field
+            label="Per Minute Rate"
+            value={settings.pragyia.perMinRate}
+            unit="GH₵"
+            onChange={(v) => set("pragyia.perMinRate", v)}
+            step={0.05}
+          />
+          <Field
+            label="Minimum Fare"
+            value={settings.pragyia.minimumFare}
+            unit="GH₵"
+            onChange={(v) => set("pragyia.minimumFare", v)}
+          />
+          <Field
+            label="Cancellation Fee"
+            value={settings.pragyia.cancellationFee}
+            unit="GH₵"
+            onChange={(v) => set("pragyia.cancellationFee", v)}
+          />
+          <Divider label="Surge Pricing" />
+          <Field
+            label="Surge Multiplier"
+            value={settings.pragyia.surgeMutiplier}
+            unit="×"
+            onChange={(v) => set("pragyia.surgeMutiplier", v)}
+            step={0.1}
+          />
+          <div style={{ gridColumn: "1/-1" }}>
+            <Toggle
+              label="Enable Surge Pricing"
+              desc="Automatically increase fares during peak hours"
+              value={settings.pragyia.surgeEnabled}
+              onChange={(v) => set("pragyia.surgeEnabled", v)}
             />
           </div>
         </Grid>
