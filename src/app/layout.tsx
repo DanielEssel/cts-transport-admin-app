@@ -4,7 +4,7 @@ import { AuthProvider } from '@/lib/auth-context'
 import { Toaster } from 'sonner'
 
 export const metadata: Metadata = {
-  title: 'CTSTransport Admin',
+  title: 'CTSGo Admin',
   description: 'CTSTransport Platform Administration Dashboard',
 }
 

@@ -118,41 +118,30 @@ export function Sidebar({ onClose }: SidebarProps) {
       >
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <div
-            style={{
-              width: "36px",
-              height: "36px",
-              borderRadius: "10px",
-              background: "linear-gradient(135deg, #16a34a, #15803d)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-              boxShadow: "0 0 16px rgba(22,163,74,0.3)",
-            }}
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="white"
-              strokeWidth="2.5"
-            >
-              <path d="M12 2L2 7l10 5 10-5-10-5z" />
-              <path d="M2 17l10 5 10-5" />
-              <path d="M2 12l10 5 10-5" />
-            </svg>
+  style={{
+    width: "36px",
+    height: "36px",
+    borderRadius: "10px",
+    background: "#ffffff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    overflow: "hidden",
+    boxShadow: "0 0 16px rgba(22,163,74,0.15)",
+  }}
+>
+  <img
+    src="/logo.png"
+    alt="Company Logo"
+    style={{
+      width: "28px",
+      height: "28px",
+      objectFit: "contain",
+    }}
+  />
           </div>
           <div>
-            <div
-              style={{
-                fontFamily: "'Syne', sans-serif",
-                fontSize: "15px",
-                fontWeight: 800,
-                color: "#f1f5f9",
-                lineHeight: 1,
-              }}
-            >
               CTS ADMIN
             </div>
             <div
@@ -168,7 +157,6 @@ export function Sidebar({ onClose }: SidebarProps) {
             </div>
           </div>
         </div>
-      </div>
 
       {/* Nav links */}
       <nav
