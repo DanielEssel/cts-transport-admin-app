@@ -168,7 +168,7 @@ export function Sidebar({ onClose }: SidebarProps) {
                 whiteSpace: "nowrap",
               }}
             >
-              CTS ADMIN
+              CTS GO
             </div>
 
             <div
