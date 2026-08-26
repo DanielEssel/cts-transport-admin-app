@@ -153,7 +153,7 @@ export function Sidebar({ onClose }: SidebarProps) {
                 lineHeight: 1,
               }}
             >
-              CT
+              CTS ADMIN
             </div>
             <div
               style={{
