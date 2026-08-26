@@ -108,7 +108,7 @@ export function Sidebar({ onClose }: SidebarProps) {
         </button>
       )}
 
-      {/* Logo */}
+      {/* Logo / Brand */}
       <div
         style={{
           padding: "0 8px 24px",
@@ -116,47 +116,78 @@ export function Sidebar({ onClose }: SidebarProps) {
           marginBottom: "16px",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+          }}
+        >
+          {/* Company Logo */}
           <div
-  style={{
-    width: "36px",
-    height: "36px",
-    borderRadius: "10px",
-    background: "#ffffff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-    overflow: "hidden",
-    boxShadow: "0 0 16px rgba(22,163,74,0.15)",
-  }}
->
-  <img
-    src="/logo.png"
-    alt="Company Logo"
-    style={{
-      width: "28px",
-      height: "28px",
-      objectFit: "contain",
-    }}
-  />
+            style={{
+              width: "40px",
+              height: "40px",
+              borderRadius: "10px",
+              background: "#ffffff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              overflow: "hidden",
+              boxShadow: "0 0 16px rgba(22, 163, 74, 0.15)",
+            }}
+          >
+            <img
+              src="/logo.png"
+              alt="Company Logo"
+              style={{
+                width: "32px",
+                height: "32px",
+                objectFit: "contain",
+              }}
+            />
           </div>
-          <div>
-              CTS ADMIN
-            </div>
+
+          {/* Brand Text */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              minWidth: 0,
+            }}
+          >
             <div
               style={{
+                fontSize: "15px",
+                fontWeight: 800,
+                color: "#ffffff",
+                letterSpacing: "0.02em",
+                lineHeight: 1.2,
+                whiteSpace: "nowrap",
+              }}
+            >
+              CTS ADMIN
+            </div>
+
+            <div
+              style={{
+                marginTop: "4px",
                 fontSize: "10px",
                 color: "#4ade80",
                 fontWeight: 600,
                 letterSpacing: "0.1em",
                 textTransform: "uppercase",
+                lineHeight: 1.2,
+                whiteSpace: "nowrap",
               }}
             >
               Admin Panel
             </div>
           </div>
         </div>
+      </div>
 
       {/* Nav links */}
       <nav
