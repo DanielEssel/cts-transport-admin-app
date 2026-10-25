@@ -88,6 +88,15 @@ const statusConfig: Record<string, { bg: string; color: string; label: string }>
   pendingReview:          { bg: '#2a2a1e', color: '#facc15', label: 'Pending Review' },
   driverAssigned:         { bg: '#1e3a5f', color: '#60a5fa', label: 'Driver Assigned' },
   driverEnRoute:          { bg: '#1e2a3a', color: '#60a5fa', label: 'En Route' },
+  // Gas suppliers, stations and products
+  draft:                  { bg: 'var(--border)', color: 'var(--text-secondary)', label: 'Draft' },
+  pending_verification:   { bg: '#2a2a1e', color: '#facc15', label: 'Pending verification' },
+  verified:               { bg: '#1a3a1a', color: '#4ade80', label: 'Verified' },
+  unverified:             { bg: '#2a2a1e', color: '#facc15', label: 'Unverified' },
+  inactive:               { bg: 'var(--border)', color: 'var(--text-secondary)', label: 'Inactive' },
+  available:              { bg: '#1a3a1a', color: '#4ade80', label: 'Available' },
+  unavailable:            { bg: 'var(--border)', color: 'var(--text-secondary)', label: 'Unavailable' },
+  out_of_stock:           { bg: '#3a1a1a', color: '#f87171', label: 'Out of stock' },
 }
 
 export function StatusBadge({ status }: { status: string }) {

@@ -9,6 +9,8 @@ import { formatDateShort, formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
 import { UserCheck, Search, Filter, CheckCircle, XCircle, Ban, RefreshCw, Eye } from 'lucide-react'
 import { DriverDetailModal } from '@/components/features/DriverDetailModal'
+import { FROZEN_ACTION_MESSAGE, isFrozen, frozenButtonStyle } from '@/lib/frozen-actions'
+import { FrozenActionNotice } from '@/components/shared/FrozenActionNotice'
 
 
 type FilterType = 'all' | 'pending' | 'approved' | 'suspended' | 'rejected'
@@ -39,7 +41,7 @@ export default function DriversPage() {
         return bTime - aTime
       })
       setDrivers(data)
-    } catch (e) { toast.error('Failed to load drivers') }
+    } catch (e: any) { console.error('loadDrivers', e); toast.error(`Failed to load drivers: ${e?.code || e?.message || e}`) }
     finally { setLoading(false) }
   }, [])
 
@@ -90,6 +92,7 @@ export default function DriversPage() {
   }
 
   const handleSuspend = async () => {
+    if (isFrozen('driverSuspension')) { toast.error(FROZEN_ACTION_MESSAGE); return }
     if (!selectedDriver) return
     setActionLoading(true)
     try {
@@ -104,6 +107,7 @@ export default function DriversPage() {
   }
 
   const handleUnsuspend = async (driver: Driver) => {
+    if (isFrozen('driverSuspension')) { toast.error(FROZEN_ACTION_MESSAGE); return }
     try {
       await updateDoc(doc(db, 'drivers', driver.uid), { signupStep: 'approved', isApproved: true })
       toast.success(`${driver.displayName} unsuspended`)
@@ -135,6 +139,8 @@ export default function DriversPage() {
           <RefreshCw size={14} />Refresh
         </button>
       </div>
+
+      {isFrozen('driverSuspension') && <FrozenActionNotice actions="Driver suspend and unsuspend" />}
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -247,13 +253,17 @@ export default function DriversPage() {
                           )}
                           {driver.isApproved && driver.signupStep !== 'suspended' && (
                             <button onClick={() => { setSelectedDriver(driver); setActionType('suspend') }}
-                              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(234,179,8,0.12)', color: '#fbbf24', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}>
+                              disabled={isFrozen('driverSuspension')}
+                              title={isFrozen('driverSuspension') ? FROZEN_ACTION_MESSAGE : undefined}
+                              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(234,179,8,0.12)', color: '#fbbf24', cursor: 'pointer', fontSize: '11px', fontWeight: 700, ...(isFrozen('driverSuspension') ? frozenButtonStyle : {}) }}>
                               Suspend
                             </button>
                           )}
                           {driver.signupStep === 'suspended' && (
                             <button onClick={() => handleUnsuspend(driver)}
-                              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(22,163,74,0.15)', color: '#4ade80', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}>
+                              disabled={isFrozen('driverSuspension')}
+                              title={isFrozen('driverSuspension') ? FROZEN_ACTION_MESSAGE : undefined}
+                              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(22,163,74,0.15)', color: '#4ade80', cursor: 'pointer', fontSize: '11px', fontWeight: 700, ...(isFrozen('driverSuspension') ? frozenButtonStyle : {}) }}>
                               Unsuspend
                             </button>
                           )}

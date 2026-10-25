@@ -25,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(u)
       if (u) {
         const adminDoc = await getDoc(doc(db, 'admins', u.uid))
-        if (adminDoc.exists() && adminDoc.data().active) {
+        if (adminDoc.exists() && adminDoc.data().active === true) {
           setAdmin({ uid: u.uid, ...adminDoc.data() } as Admin)
         } else {
           setAdmin(null)
@@ -41,9 +41,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     const cred = await signInWithEmailAndPassword(auth, email, password)
     const adminDoc = await getDoc(doc(db, 'admins', cred.user.uid))
-    if (!adminDoc.exists() || !adminDoc.data().active) {
+    if (!adminDoc.exists() || adminDoc.data().active !== true) {
       await firebaseSignOut(auth)
-      throw new Error('Access denied. Not an admin account.')
+      const reason = !adminDoc.exists()
+        ? `no admins/${cred.user.uid} document`
+        : `admins/${cred.user.uid}.active must be boolean true (got ${JSON.stringify(adminDoc.data().active)})`
+      console.error('Admin check failed:', reason, cred.user.email)
+      throw new Error(`Access denied. Not an admin account (${reason}).`)
     }
   }
 

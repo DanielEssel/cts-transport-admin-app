@@ -8,6 +8,8 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import { Car, Search, Download, RefreshCw, Edit2, X, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { exportToCSV } from '@/lib/export'
+import { FROZEN_ACTION_MESSAGE, isFrozen, frozenButtonStyle } from '@/lib/frozen-actions'
+import { FrozenActionNotice } from '@/components/shared/FrozenActionNotice'
 
 type TripFilter = 'all' | 'searching' | 'tripAccepted' | 'tripStarted' | 'completed' | 'cancelled'
 
@@ -67,6 +69,7 @@ export default function TripsPage() {
   }, [trips, filter, search, dateFrom, dateTo])
 
   const handleFareOverride = async () => {
+    if (isFrozen('tripFareOverride')) { toast.error(FROZEN_ACTION_MESSAGE); return }
     if (!editTrip || !newFare) return
     const amount = parseFloat(newFare)
     if (isNaN(amount) || amount < 0) { toast.error('Enter valid fare'); return }
@@ -174,6 +177,8 @@ export default function TripsPage() {
       </div>
 
       {/* Table */}
+      {isFrozen('tripFareOverride') && <FrozenActionNotice actions="Trip fare adjustment" />}
+
       {loading ? <TableSkeleton rows={8} cols={7} /> : (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', overflow: 'hidden' }}>
           {filtered.length === 0 ? (
@@ -234,7 +239,9 @@ export default function TripsPage() {
                         <td>
                           {trip.status === 'completed' && (
                             <button onClick={() => { setEditTrip(trip); setNewFare(String(trip.actualFare || trip.estimatedFare || '')) }}
-                              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(251,191,36,0.12)', color: '#fbbf24', cursor: 'pointer', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              disabled={isFrozen('tripFareOverride')}
+                              title={isFrozen('tripFareOverride') ? FROZEN_ACTION_MESSAGE : undefined}
+                              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(251,191,36,0.12)', color: '#fbbf24', cursor: 'pointer', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px', ...(isFrozen('tripFareOverride') ? frozenButtonStyle : {}) }}>
                               <Edit2 size={10} /> Adjust Fare
                             </button>
                           )}
