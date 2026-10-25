@@ -18,7 +18,8 @@ import {
   X,
   ChevronRight,
 } from "lucide-react";
-import { MapPin, Headphones, Tag, ClipboardList } from "lucide-react";
+import { MapPin, Headphones, Tag, ClipboardList, Factory } from "lucide-react";
+import { Truck, Scale } from "lucide-react";
 
 const links = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -27,6 +28,9 @@ const links = [
   { href: "/trips", icon: Car, label: "Trips" },
   { href: "/deliveries", icon: Package, label: "Deliveries" },
   { href: "/gas-orders", icon: Flame, label: "Gas Orders" },
+  { href: "/gas-suppliers", icon: Factory, label: "Gas Suppliers" },
+  { href: "/gas-supplier-orders", icon: Truck, label: "Supplier Orders" },
+  { href: "/gas-settlement", icon: Scale, label: "Gas Settlement" },
   { href: "/withdrawals", icon: Wallet, label: "Withdrawals" },
   { href: "/notifications", icon: Bell, label: "Notifications" },
   { href: "/live-map", icon: MapPin, label: "Live Map" },

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { AuthProvider } from '@/lib/auth-context'
 import { Toaster } from 'sonner'
+import { EmulatorBanner } from '@/components/shared/EmulatorBanner'
 
 export const metadata: Metadata = {
   title: 'CTSGo Admin',
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             }
           })();
         ` }} />
+        <EmulatorBanner />
         <AuthProvider>
           {children}
           <Toaster position="top-right" richColors />

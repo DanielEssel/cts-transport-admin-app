@@ -4,6 +4,7 @@ import { Driver } from '@/types'
 import { StatusBadge, Avatar } from '@/components/shared'
 import { formatDateShort, formatCurrency } from '@/lib/utils'
 import { X, ExternalLink, CheckCircle, XCircle, FileText, User, Car, Star } from 'lucide-react'
+import { FROZEN_ACTION_MESSAGE, isFrozen, frozenButtonStyle } from '@/lib/frozen-actions'
 
 interface DriverDetailModalProps {
   driver: Driver
@@ -351,10 +352,19 @@ export function DriverDetailModal({ driver, onClose, onApprove, onReject, onSusp
               }}>
                 Close
               </button>
-              <button onClick={() => { onSuspend(); onClose() }} style={{
+              {isFrozen('driverSuspension') && (
+                <span style={{ alignSelf: 'center', fontSize: '12px', color: 'var(--text-tertiary)', marginRight: 'auto' }}>
+                  {FROZEN_ACTION_MESSAGE}
+                </span>
+              )}
+              <button onClick={() => { onSuspend(); onClose() }}
+                disabled={isFrozen('driverSuspension')}
+                title={isFrozen('driverSuspension') ? FROZEN_ACTION_MESSAGE : undefined}
+                style={{
                 padding: '10px 20px', borderRadius: '10px', border: 'none',
                 background: 'rgba(234,179,8,0.12)', color: '#fbbf24',
-                cursor: 'pointer', fontSize: '13px', fontWeight: 700
+                cursor: 'pointer', fontSize: '13px', fontWeight: 700,
+                ...(isFrozen('driverSuspension') ? frozenButtonStyle : {})
               }}>
                 Suspend Driver
               </button>

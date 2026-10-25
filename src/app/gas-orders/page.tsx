@@ -6,8 +6,8 @@ import { GasOrder } from '@/types'
 import { StatusBadge, EmptyState, TableSkeleton, StatsCard } from '@/components/shared'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { Flame, Search } from 'lucide-react'
-
-type GasFilter = 'all' | 'pendingReview' | 'driverAssigned' | 'delivered' | 'cancelled'
+import { toast } from 'sonner'
+import { GasFilter, matchesGasFilter } from '@/lib/gas-order-filters'
 
 export default function GasOrdersPage() {
   const [orders, setOrders] = useState<GasOrder[]>([])
@@ -21,17 +21,14 @@ export default function GasOrdersPage() {
     try {
       const snap = await getDocs(query(collection(db, 'gas_orders'), orderBy('createdAt', 'desc'), limit(200)))
       setOrders(snap.docs.map(d => ({ id: d.id, ...d.data() })) as GasOrder[])
-    } catch { } finally { setLoading(false) }
+    } catch (e: any) { console.error('loadGasOrders', e); toast.error(`Failed to load gas orders: ${e?.code || e?.message || e}`) } finally { setLoading(false) }
   }, [])
 
   useEffect(() => { load() }, [load])
 
   useEffect(() => {
     let result = orders
-    if (filter !== 'all') {
-      if (filter === 'cancelled') result = result.filter(o => o.status.toLowerCase().includes('cancel'))
-      else result = result.filter(o => o.status === filter)
-    }
+    if (filter !== 'all') result = result.filter(o => matchesGasFilter(o.status, filter))
     if (search) {
       const q = search.toLowerCase()
       result = result.filter(o =>
@@ -47,7 +44,7 @@ export default function GasOrdersPage() {
 
   const filters: { key: GasFilter; label: string }[] = [
     { key: 'all', label: 'All' },
-    { key: 'pendingReview', label: 'Pending' },
+    { key: 'pendingApproval', label: 'Pending' },
     { key: 'driverAssigned', label: 'Assigned' },
     { key: 'delivered', label: 'Delivered' },
     { key: 'cancelled', label: 'Cancelled' },

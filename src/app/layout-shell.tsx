@@ -17,7 +17,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [user, admin, loading, router])
 
   const segments = pathname.split('/').filter(Boolean)
-  const pageTitle = segments[segments.length - 1]?.replace(/-/g, ' ') || 'Dashboard'
+  // Titled by section: a detail route such as /gas-suppliers/{id} keeps its
+  // section name rather than showing the record id.
+  const pageTitle = segments[0]?.replace(/-/g, ' ') || 'Dashboard'
 
   if (loading) return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

@@ -1,3 +1,8 @@
 node_modules/
 .next/
 .env.local
+
+# Firebase emulator logs (npm run emulators)
+firebase-debug.log
+firestore-debug.log
+ui-debug.log

@@ -127,7 +127,13 @@ export interface Withdrawal {
   currency: string
   method: string
   phoneNumber?: string
-  status: 'pending' | 'approved' | 'rejected' | 'paid'
+  /** The server writes the payout number as `phone`. */
+  phone?: string
+  // Statuses written by the withdrawal Cloud Functions.
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'rejected'
+  /** Set while a payout attempt is in progress or awaiting confirmation. */
+  payoutOutcome?: 'sending' | 'sent' | 'unknown' | 'refused'
+  sendingStartedAt?: any
   createdAt?: any
   txId?: string
 }

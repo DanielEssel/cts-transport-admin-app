@@ -6,6 +6,8 @@ import { Avatar, EmptyState, TableSkeleton } from '@/components/shared'
 import { formatDateShort, formatCurrency } from '@/lib/utils'
 import { Users, Search, Wallet, Plus, Minus, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { FROZEN_ACTION_MESSAGE, isFrozen, frozenButtonStyle } from '@/lib/frozen-actions'
+import { FrozenActionNotice } from '@/components/shared/FrozenActionNotice'
 
 interface Passenger {
   uid: string
@@ -42,7 +44,7 @@ export default function PassengersPage() {
         } catch { return { ...user, walletBalance: 0 } }
       }))
       setPassengers(data)
-    } catch { toast.error('Failed to load passengers') }
+    } catch (e: any) { console.error('loadPassengers', e); toast.error(`Failed to load passengers: ${e?.code || e?.message || e}`) }
     finally { setLoading(false) }
   }, [])
 
@@ -61,6 +63,7 @@ export default function PassengersPage() {
   }, [search, passengers])
 
   const handleWalletAction = async () => {
+    if (isFrozen('walletAdjustment')) { toast.error(FROZEN_ACTION_MESSAGE); return }
     if (!walletModal || !walletAmount) return
     const amount = parseFloat(walletAmount)
     if (isNaN(amount) || amount <= 0) { toast.error('Enter a valid amount'); return }
@@ -125,6 +128,8 @@ export default function PassengersPage() {
         </div>
       </div>
 
+      {isFrozen('walletAdjustment') && <FrozenActionNotice actions="Wallet top-up and deduction" />}
+
       {loading ? <TableSkeleton rows={8} cols={5} /> : (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', overflow: 'hidden' }}>
           {filtered.length === 0 ? (
@@ -164,7 +169,10 @@ export default function PassengersPage() {
                       <td style={{ fontSize: '11px' }}>{formatDateShort(p.createdAt)}</td>
                       <td>
                         <button onClick={() => { setWalletModal(p); setWalletAction('topup') }}
-                          style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(22,163,74,0.12)', color: '#4ade80', cursor: 'pointer', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          disabled={isFrozen('walletAdjustment')}
+                          title={isFrozen('walletAdjustment') ? FROZEN_ACTION_MESSAGE : undefined}
+                          aria-label={isFrozen('walletAdjustment') ? `Wallet: ${FROZEN_ACTION_MESSAGE}` : undefined}
+                          style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(22,163,74,0.12)', color: '#4ade80', cursor: 'pointer', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px', ...(isFrozen('walletAdjustment') ? frozenButtonStyle : {}) }}>
                           <Wallet size={11} /> Wallet
                         </button>
                       </td>
