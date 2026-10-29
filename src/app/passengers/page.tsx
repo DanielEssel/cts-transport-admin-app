@@ -217,7 +217,7 @@ export default function PassengersPage() {
                   flex: 1, padding: '8px', borderRadius: '8px', border: 'none', cursor: 'pointer',
                   fontSize: '13px', fontWeight: 700,
                   background: walletAction === action
-                    ? (action === 'topup' ? '#16a34a' : '#ef4444')
+                    ? (action === 'topup' ? 'var(--primary-dark)' : '#ef4444')
                     : 'transparent',
                   color: walletAction === action ? '#fff' : 'var(--text-secondary)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
@@ -249,7 +249,7 @@ export default function PassengersPage() {
               <button onClick={() => setWalletModal(null)} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
               <button onClick={handleWalletAction} disabled={walletLoading || !walletAmount} style={{
                 flex: 1, padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 700,
-                background: walletAction === 'topup' ? 'linear-gradient(135deg, #16a34a, #15803d)' : '#ef4444',
+                background: walletAction === 'topup' ? 'var(--primary-dark)' : '#ef4444',
                 color: '#fff', opacity: walletLoading || !walletAmount ? 0.7 : 1
               }}>
                 {walletLoading ? 'Processing...' : walletAction === 'topup' ? 'Top Up' : 'Deduct'}

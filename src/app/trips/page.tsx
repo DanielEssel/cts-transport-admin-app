@@ -142,7 +142,7 @@ export default function TripsPage() {
           <button key={f.key} onClick={() => setFilter(f.key)} style={{
             padding: '7px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer',
             fontSize: '12px', fontWeight: 600,
-            background: filter === f.key ? '#16a34a' : 'var(--surface-alt)',
+            background: filter === f.key ? 'var(--primary-dark)' : 'var(--surface-alt)',
             color: filter === f.key ? '#fff' : 'var(--text-secondary)',
           }}>{f.label}</button>
         ))}
@@ -165,7 +165,7 @@ export default function TripsPage() {
           }} />
         </div>
         {(dateFrom || dateTo) && (
-          <button onClick={() => { setDateFrom(''); setDateTo('') }} style={{ fontSize: '11px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+          <button onClick={() => { setDateFrom(''); setDateTo('') }} style={{ fontSize: '11px', color: 'var(--tone-danger-fg)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
             Clear dates
           </button>
         )}
@@ -229,11 +229,11 @@ export default function TripsPage() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ fontWeight: 700, color: 'var(--accent-text)' }}>{formatCurrency(fare)}</span>
                             {trip.fareOverride && (
-                              <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '4px', background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}>OVERRIDDEN</span>
+                              <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '4px', background: 'rgba(251,191,36,0.12)', color: 'var(--tone-warning-fg)' }}>OVERRIDDEN</span>
                             )}
                           </div>
                         </td>
-                        <td style={{ fontSize: '12px', color: '#a78bfa', fontWeight: 600 }}>{formatCurrency(fee)}</td>
+                        <td style={{ fontSize: '12px', color: 'var(--tone-violet-fg)', fontWeight: 600 }}>{formatCurrency(fee)}</td>
                         <td><StatusBadge status={trip.status} /></td>
                         <td style={{ fontSize: '11px' }}>{formatDate(trip.createdAt)}</td>
                         <td>
@@ -241,7 +241,7 @@ export default function TripsPage() {
                             <button onClick={() => { setEditTrip(trip); setNewFare(String(trip.actualFare || trip.estimatedFare || '')) }}
                               disabled={isFrozen('tripFareOverride')}
                               title={isFrozen('tripFareOverride') ? FROZEN_ACTION_MESSAGE : undefined}
-                              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(251,191,36,0.12)', color: '#fbbf24', cursor: 'pointer', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px', ...(isFrozen('tripFareOverride') ? frozenButtonStyle : {}) }}>
+                              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(251,191,36,0.12)', color: 'var(--tone-warning-fg)', cursor: 'pointer', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px', ...(isFrozen('tripFareOverride') ? frozenButtonStyle : {}) }}>
                               <Edit2 size={10} /> Adjust Fare
                             </button>
                           )}
@@ -305,7 +305,7 @@ export default function TripsPage() {
               <button onClick={() => setEditTrip(null)} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
               <button onClick={handleFareOverride} disabled={saving || !newFare} style={{
                 flex: 1, padding: '10px', borderRadius: '8px', border: 'none',
-                background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                background: 'var(--primary-dark)',
                 color: '#fff', cursor: saving || !newFare ? 'not-allowed' : 'pointer',
                 fontSize: '13px', fontWeight: 700, opacity: saving || !newFare ? 0.7 : 1,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'

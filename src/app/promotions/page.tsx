@@ -21,7 +21,7 @@ interface Promo {
 
 const defaultForm = {
   title: '', subtitle: '', imageUrl: '',
-  backgroundColor: '#16a34a',
+  backgroundColor: 'var(--primary-dark)',
   targetAudience: 'all' as const,
   active: true, priority: 1,
 }
@@ -91,7 +91,7 @@ export default function PromotionsPage() {
           </button>
           <button onClick={() => setShowForm(true)} style={{
             display: 'flex', alignItems: 'center', gap: '6px',
-            background: 'linear-gradient(135deg, #16a34a, #15803d)',
+            background: 'var(--primary-dark)',
             border: 'none', borderRadius: '8px', padding: '8px 16px',
             color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 700,
             boxShadow: '0 4px 12px rgba(22,163,74,0.3)'
@@ -123,7 +123,7 @@ export default function PromotionsPage() {
             }}>
               {/* Banner preview */}
               <div style={{
-                height: '100px', background: promo.backgroundColor || '#16a34a',
+                height: '100px', background: promo.backgroundColor || 'var(--primary-dark)',
                 display: 'flex', alignItems: 'center', padding: '20px',
                 position: 'relative'
               }}>
@@ -149,7 +149,7 @@ export default function PromotionsPage() {
                     <span style={{
                       fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px',
                       background: promo.active ? 'rgba(22,163,74,0.12)' : 'rgba(239,68,68,0.12)',
-                      color: promo.active ? 'var(--accent-text)' : '#f87171'
+                      color: promo.active ? 'var(--accent-text)' : 'var(--tone-danger-fg)'
                     }}>{promo.active ? 'Active' : 'Hidden'}</span>
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{formatDate(promo.createdAt)}</div>
@@ -164,7 +164,7 @@ export default function PromotionsPage() {
                 <button onClick={() => setDeleteId(promo.id)} style={{
                   background: 'rgba(239,68,68,0.12)', border: 'none',
                   borderRadius: '6px', padding: '6px', cursor: 'pointer',
-                  color: '#f87171', display: 'flex'
+                  color: 'var(--tone-danger-fg)', display: 'flex'
                 }}>
                   <Trash2 size={13} />
                 </button>
@@ -245,7 +245,7 @@ export default function PromotionsPage() {
               <button onClick={() => setShowForm(false)} style={{ padding: '10px 18px', borderRadius: '8px', border: '1px solid var(--border)', background: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
               <button onClick={handleSave} disabled={saving} style={{
                 padding: '10px 20px', borderRadius: '8px', border: 'none',
-                background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                background: 'var(--primary-dark)',
                 color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 700,
                 opacity: saving ? 0.7 : 1
               }}>

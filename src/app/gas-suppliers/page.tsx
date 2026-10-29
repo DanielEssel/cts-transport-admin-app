@@ -60,16 +60,16 @@ export default function GasSuppliersPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
         <StatsCard title="Suppliers" value={rows.length} icon={<Factory size={16} />} iconColor="#fb923c" iconBg="rgba(249,115,22,0.12)" loading={loading} />
-        <StatsCard title="Awaiting verification" value={count('pending_verification')} icon={<Factory size={16} />} iconColor="#facc15" iconBg="rgba(234,179,8,0.12)" loading={loading} />
+        <StatsCard title="Awaiting verification" value={count('pending_verification')} icon={<Factory size={16} />} iconColor="var(--tone-warning-fg)" iconBg="rgba(234,179,8,0.12)" loading={loading} />
         <StatsCard title="Approved" value={count('approved')} icon={<Factory size={16} />} iconColor="var(--accent-text)" iconBg="rgba(22,163,74,0.12)" loading={loading} />
-        <StatsCard title="Taking orders" value={rows.filter((s) => s.ordersEnabled).length} icon={<Factory size={16} />} iconColor="#60a5fa" iconBg="rgba(96,165,250,0.12)" loading={loading} />
+        <StatsCard title="Taking orders" value={rows.filter((s) => s.ordersEnabled).length} icon={<Factory size={16} />} iconColor="var(--tone-info-fg)" iconBg="rgba(96,165,250,0.12)" loading={loading} />
       </div>
 
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
         {(['all', ...SUPPLIER_STATUSES] as const).map((st) => (
           <button key={st} onClick={() => setStatus(st)} style={{
             padding: '7px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 600,
-            background: status === st ? '#16a34a' : 'var(--surface-alt)', color: status === st ? '#fff' : 'var(--text-secondary)',
+            background: status === st ? 'var(--primary-dark)' : 'var(--surface-alt)', color: status === st ? '#fff' : 'var(--text-secondary)',
           }}>
             {st === 'all' ? 'All' : label(st)} <span style={{ opacity: 0.7 }}>({st === 'all' ? rows.length : count(st)})</span>
           </button>

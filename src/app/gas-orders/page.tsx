@@ -60,11 +60,11 @@ export default function GasOrdersPage() {
       {/* Mini stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
         <StatsCard title="Total Orders" value={orders.length}
-          icon={<Flame size={16} />} iconColor="#fb923c" iconBg="rgba(249,115,22,0.12)" />
+          icon={<Flame size={16} />} iconColor="var(--tone-warning-fg)" iconBg="rgba(249,115,22,0.12)" />
         <StatsCard title="Delivered" value={orders.filter(o => o.status === 'delivered').length}
           icon={<Flame size={16} />} iconColor="var(--accent-text)" iconBg="rgba(22,163,74,0.12)" />
         <StatsCard title="Gas Revenue" value={formatCurrency(totalRevenue)}
-          icon={<Flame size={16} />} iconColor="#fb923c" iconBg="rgba(249,115,22,0.12)" />
+          icon={<Flame size={16} />} iconColor="var(--tone-warning-fg)" iconBg="rgba(249,115,22,0.12)" />
       </div>
 
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -110,7 +110,7 @@ export default function GasOrdersPage() {
                         {o.id.slice(0, 10)}...
                       </td>
                       <td>
-                        <span style={{ fontSize: '12px', fontWeight: 700, padding: '2px 10px', background: 'rgba(217,119,6,0.12)', borderRadius: '6px', color: '#fbbf24' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, padding: '2px 10px', background: 'rgba(217,119,6,0.12)', borderRadius: '6px', color: 'var(--tone-warning-fg)' }}>
                           {o.cylinderSize}
                         </span>
                       </td>
@@ -120,7 +120,7 @@ export default function GasOrdersPage() {
                           {o.deliveryAddress || '—'}
                         </div>
                       </td>
-                      <td style={{ fontWeight: 700, color: '#fb923c' }}>{formatCurrency(o.totalPrice)}</td>
+                      <td style={{ fontWeight: 700, color: 'var(--tone-warning-fg)' }}>{formatCurrency(o.totalPrice)}</td>
                       <td><StatusBadge status={o.status} /></td>
                       <td style={{ fontSize: '11px' }}>{formatDate(o.createdAt)}</td>
                     </tr>

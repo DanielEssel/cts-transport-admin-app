@@ -141,7 +141,7 @@ export default function SupplierDetailPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {readiness.checks.map((c) => (
             <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: c.ok ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-              {c.ok ? <CheckCircle2 size={15} color="#4ade80" /> : <Circle size={15} color="#f87171" />}
+              {c.ok ? <CheckCircle2 size={15} color="var(--accent-text)" /> : <Circle size={15} color="var(--tone-danger-fg)" />}
               {c.label}{c.detail && <span style={{ color: 'var(--text-tertiary)' }}> — {c.detail}</span>}
             </div>
           ))}

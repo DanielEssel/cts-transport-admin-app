@@ -29,7 +29,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pageTitle = link?.label ?? (pathname.split('/').filter(Boolean)[0]?.replace(/-/g, ' ') || 'Dashboard')
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ minHeight: 'calc(100vh - var(--banner-h, 0px))', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div role="status" style={{ textAlign: 'center' }}>
         <div style={{
           width: '36px', height: '36px', borderRadius: '50%',
@@ -45,8 +45,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (!user || !admin) return null
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: 'var(--bg)', overflow: 'hidden' }}>
-      <div className="shell-sidebar" style={{ width: '248px', flexShrink: 0, height: '100vh' }}>
+    <div style={{ display: 'flex', height: 'calc(100vh - var(--banner-h, 0px))', background: 'var(--bg)', overflow: 'hidden' }}>
+      <div className="shell-sidebar" style={{ width: '248px', flexShrink: 0, height: 'calc(100vh - var(--banner-h, 0px))' }}>
         <Sidebar />
       </div>
 
@@ -59,7 +59,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100vh', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: 'calc(100vh - var(--banner-h, 0px))', overflow: 'hidden' }}>
         <header style={{
           minHeight: '64px', background: 'var(--surface)', borderBottom: '1px solid var(--border)',
           display: 'flex', alignItems: 'center', padding: '0 20px', gap: '12px', flexShrink: 0,
