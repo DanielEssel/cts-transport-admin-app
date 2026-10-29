@@ -175,3 +175,37 @@ test('the rules accept exactly these order types, sizes and brands', { skip: !ex
   assert.deepEqual(list('brand'), [...g.GAS_BRANDS])
   assert.deepEqual(list('availability'), [...g.PRODUCT_AVAILABILITY])
 })
+
+// ── Round 4: payout preference and rider arrangement ──
+
+test('payout preference: MTN MoMo, Telecel Cash or AT Money, a 10-digit number and the account name', () => {
+  assert.deepEqual([...g.PAYOUT_METHODS], ['mtn_momo', 'telecel_cash', 'at_money'])
+  assert.deepEqual(g.PAYOUT_METHODS.map((m) => g.LABELS[m]), ['MTN MoMo', 'Telecel Cash', 'AT Money'])
+  assert.equal(g.payoutPreferenceProblem(null), null, 'optional')
+  for (const method of g.PAYOUT_METHODS) {
+    assert.equal(g.payoutPreferenceProblem({ method, accountNumber: '0241234567', accountName: 'Test Gas Ltd' }), null, method)
+  }
+  for (const p of [{ method: 'bank', accountNumber: '0241234567', accountName: 'Ab' },
+    { method: 'mtn_momo', accountNumber: '+233241234567', accountName: 'Ab' },
+    { method: 'mtn_momo', accountNumber: '024123456', accountName: 'Ab' },
+    { method: 'mtn_momo', accountNumber: '0241234567', accountName: 'A' }]) {
+    assert.ok(g.payoutPreferenceProblem(p), JSON.stringify(p))
+  }
+})
+
+test('the payout validation agrees with firestore.rules', { skip: !existsSync(rules) && 'passenger repo not alongside' }, () => {
+  const src = readFileSync(rules, 'utf8')
+  assert.match(src, /p\.method in \['mtn_momo', 'telecel_cash', 'at_money'\]/)
+  assert.match(src, /p\.accountNumber\.matches\('\^0\[0-9\]\{9\}\$'\)/)
+})
+
+test('a supplier relying only on its own riders is not ready: dispatch cannot assign supplier riders yet', () => {
+  const full = [{ station: goodStation, products: [product()] }]
+  const r = g.supplierReadiness(readySupplier({ riderArrangement: 'supplier_riders' }), full)
+  assert.equal(r.canEnableOrders, false)
+  assert.match(r.checks.find((c) => c.id === 'riders').detail, /cannot assign supplier riders/)
+  for (const a of ['ctsgo_dispatch', 'supplier_riders_ctsgo_fallback']) {
+    assert.equal(g.supplierReadiness(readySupplier({ riderArrangement: a }), full).canEnableOrders, true, a)
+  }
+})
+

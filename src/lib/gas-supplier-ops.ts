@@ -31,6 +31,13 @@ export const supplierOrderLabel = (s: string) => SUPPLIER_ORDER_LABELS[s] ?? s
 export const ADMIN_CANCELLABLE: readonly string[] = ['awaiting_payment', 'pendingApproval', 'confirmed', 'driverAssigned', 'atStation', 'outForDelivery']
 
 /**
+ * Statuses in which an admin may take the driver off an order so another
+ * driver can take it (gas_supplier_fulfilment.js adminReleaseGasSupplierDriver):
+ * before the supplier hands the cylinder over.
+ */
+export const ADMIN_RELEASABLE: readonly string[] = ['driverAssigned', 'atStation']
+
+/**
  * Monitoring thresholds for flagging orders to look at. These are display
  * defaults for operations, not business rules: nothing is changed
  * automatically when they are crossed.
@@ -120,6 +127,181 @@ export function isClosedBusinessDate(date: string, now: number): boolean {
   const ms = Date.parse(`${date}T00:00:00Z`)
   if (Number.isNaN(ms) || new Date(ms).toISOString().slice(0, 10) !== date) return false
   return date < new Date(now).toISOString().slice(0, 10)
+}
+
+// ── Financial allocation (gas_supplier_orders/{id}/finance/allocation) ─────
+//
+// Written by createGasSupplierOrder with the order (gas_settlement_ledger.js
+// computeAllocation); admins read it. The admin shows it and re-checks the
+// equations; it never computes an amount to post.
+
+export interface Allocation {
+  productSubtotalPesewas: number
+  handlingFeePesewas: number
+  deliveryFeePesewas: number
+  customerTotalPesewas: number
+  commissionBasePesewas: number
+  commissionRateBps: number
+  commissionPesewas: number
+  commissionTermsId: string
+  commissionTermsVersion: number
+  commissionTermsReference: string
+  supplierGrossPesewas: number
+  supplierAdjustmentsPesewas: number
+  supplierNetPesewas: number
+  driverAdjustmentsPesewas: number
+  driverNetPesewas: number
+  settlement?: { status?: string; reconciliation?: string | null; reconciliationReason?: string | null }
+}
+
+const ALLOCATION_AMOUNTS = [
+  'productSubtotalPesewas', 'handlingFeePesewas', 'deliveryFeePesewas', 'customerTotalPesewas', 'commissionBasePesewas',
+  'commissionPesewas', 'supplierGrossPesewas', 'supplierAdjustmentsPesewas', 'supplierNetPesewas', 'driverAdjustmentsPesewas', 'driverNetPesewas',
+] as const
+
+/**
+ * The agreed equations, checked on a stored allocation (and against the
+ * order's snapshot total when given). Each failed equation is named.
+ */
+export function checkAllocation(a: Partial<Allocation> | null | undefined, snapshotTotalGhs?: number | null): { ok: boolean; problems: string[] } {
+  if (!a) return { ok: false, problems: ['No allocation recorded'] }
+  if (!ALLOCATION_AMOUNTS.every((k) => isPesewas(a[k]))) return { ok: false, problems: ['Unreadable amounts'] }
+  const v = a as Allocation
+  const problems: string[] = []
+  if (v.customerTotalPesewas !== v.productSubtotalPesewas + v.handlingFeePesewas + v.deliveryFeePesewas) problems.push('Total ≠ product + handling + delivery')
+  if (v.commissionBasePesewas !== v.productSubtotalPesewas) problems.push('Commission base is not the product subtotal')
+  if (!(Number.isInteger(v.commissionRateBps) && v.commissionRateBps >= 0 && v.commissionRateBps <= 10000)
+    || v.commissionPesewas !== Math.floor((v.commissionBasePesewas * v.commissionRateBps) / 10000)) problems.push('Commission ≠ floor(base × rate)')
+  if (v.supplierGrossPesewas !== v.productSubtotalPesewas + v.handlingFeePesewas) problems.push('Supplier gross ≠ product + handling')
+  if (v.supplierNetPesewas !== v.supplierGrossPesewas - v.commissionPesewas + v.supplierAdjustmentsPesewas) problems.push('Supplier net ≠ gross − commission + adjustments')
+  if (v.driverNetPesewas !== v.deliveryFeePesewas + v.driverAdjustmentsPesewas) problems.push('Driver net ≠ delivery fee + adjustments')
+  if (v.supplierNetPesewas + v.driverNetPesewas + v.commissionPesewas !== v.customerTotalPesewas) problems.push('Parts do not add up to the total')
+  if (typeof snapshotTotalGhs === 'number' && Math.round(snapshotTotalGhs * 100) !== v.customerTotalPesewas) problems.push('Total differs from the order’s price snapshot')
+  return { ok: problems.length === 0, problems }
+}
+
+/**
+ * Why an order's allocation could not be read, kept apart from "none
+ * recorded": a refused read (rules without the finance/{docId} match) says
+ * nothing about whether the order has an allocation.
+ */
+export function allocationReadError(e: unknown): string {
+  return gasLoadError(e, 'gas_supplier_orders/{orderId}/finance', 'order allocations')
+}
+
+/** Basis points as a percentage, e.g. 1250 → "12.50%". */
+export function formatBps(bps: unknown): string {
+  return Number.isInteger(bps) ? `${((bps as number) / 100).toFixed(2)}%` : '—'
+}
+
+export const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  held: 'Held (wallet escrow)',
+  captured: 'Captured on delivery',
+  refunded: 'Refunded',
+}
+
+export const ALLOCATION_SETTLEMENT_LABELS: Record<string, string> = {
+  not_posted: 'Not yet accrued',
+  accrued: 'Entitlement accrued',
+  reversed: 'Reversed',
+}
+
+/**
+ * Where an entitlement is in settlement. Payout approval and completion
+ * come only from gas_supplier_payouts.js (behind settings/gas_supplier_payouts):
+ * a supplier payout is completed only when a super admin records Bridge's
+ * confirmation; a driver statement when it is credited to the driver wallet.
+ */
+export type SettlementStage = 'accrued' | 'reversed' | 'statement_prepared' | 'payout_approved' | 'payout_completed'
+
+export const SETTLEMENT_STAGE_LABELS: Record<SettlementStage, string> = {
+  accrued: 'Accrued entitlement',
+  reversed: 'Reversed',
+  statement_prepared: 'In a prepared statement',
+  payout_approved: 'Payout approved (in progress)',
+  payout_completed: 'Payout completed',
+}
+
+export function settlementStage(entry: { kind: string }, opts: { reversed?: boolean; statementPayoutStatus?: string | null; claimed?: boolean }): SettlementStage {
+  if (opts.claimed) {
+    if (opts.statementPayoutStatus === 'paid') return 'payout_completed'
+    if (opts.statementPayoutStatus === 'payout_in_progress') return 'payout_approved'
+    return 'statement_prepared'
+  }
+  if (entry.kind !== 'reversal' && opts.reversed) return 'reversed'
+  return 'accrued'
+}
+
+/** A statement's payout status for display; anything unknown is not started. */
+export function payoutStatusLabel(s: string | null | undefined): string {
+  if (s === 'paid') return 'Payout completed'
+  if (s === 'payout_in_progress') return 'Payout approved (in progress)'
+  if (s === 'failed') return 'Payout failed (can be sent again)'
+  return 'Not started'
+}
+
+/** What happened to the current Mobile Money attempt, for display. */
+export const PAYOUT_OUTCOME_LABELS: Record<string, string> = {
+  sending: 'Sending to Bridge',
+  sent: 'Accepted by Bridge — confirm with Bridge, then record the result',
+  unknown: 'Bridge did not confirm — check with Bridge, never resend',
+  refused: 'Refused by Bridge',
+  not_sent: 'Not sent',
+  confirmed_paid: 'Confirmed paid',
+  confirmed_failed: 'Confirmed not paid',
+}
+
+export type StatementPayoutAction = 'send_mobile_money' | 'record_result' | 'credit_driver_wallet'
+
+/**
+ * The payout action a super admin may take on a statement, as the server
+ * allows it (gas_supplier_payouts.js), or null. Commission statements and
+ * statements with nothing to pay offer none.
+ */
+export function statementPayoutAction(s: { party?: string; status?: string; netPesewas?: unknown; payoutStatus?: string; payout?: { outcome?: string } | null }): StatementPayoutAction | null {
+  const payable = s.status === 'prepared' && isPesewas(s.netPesewas) && (s.netPesewas as number) > 0
+  if (s.party === 'supplier') {
+    if (s.payoutStatus === 'payout_in_progress') return s.payout?.outcome === 'sent' || s.payout?.outcome === 'unknown' ? 'record_result' : null
+    return payable && (s.payoutStatus === 'not_started' || s.payoutStatus === 'failed') ? 'send_mobile_money' : null
+  }
+  if (s.party === 'driver') return payable && s.payoutStatus === 'not_started' ? 'credit_driver_wallet' : null
+  return null
+}
+
+/** Who delivers a supplier order (gas_supplier_fulfilment.js deliveryMode). */
+export function deliveryModeLabel(m: string | null | undefined): string {
+  if (m === 'supplier_rider') return "Supplier's own rider (delivery fee to the supplier)"
+  if (m === 'ctsgo_driver') return 'CTSGo driver (delivery fee to the driver)'
+  return 'Not chosen yet'
+}
+
+/** Evidence must identify Bridge's confirmation (as the server requires: 6+ characters). */
+export const payoutEvidenceOk = (v: string) => v.trim().length >= 6
+
+// ── Commission terms (gas_commission_terms) ─────────────────────────────────
+
+export interface TermsProposal {
+  rateBps: number
+  termsReference: string
+  settlementHoldHours: number
+}
+
+/** The server's input checks (gas_settlement_ledger.js proposeTerms), so the form says why before it submits. */
+export function termsProposalProblem(p: { rateBps: string; termsReference: string; settlementHoldHours: string }): string | null {
+  if (!/^\d+$/.test(p.rateBps.trim()) || Number(p.rateBps) > 10000) return 'Rate: whole basis points from 0 to 10000 (1000 = 10%).'
+  if (p.termsReference.trim().length < 3 || p.termsReference.length > 200) return 'Terms reference: the signed agreement or approval record (3–200 characters).'
+  const h = Number(p.settlementHoldHours)
+  if (p.settlementHoldHours.trim() === '' || !Number.isFinite(h) || h < 0 || h > 720) return 'Settlement hold: 0 to 720 hours.'
+  return null
+}
+
+export function parseTermsProposal(p: { rateBps: string; termsReference: string; settlementHoldHours: string }): TermsProposal {
+  return { rateBps: Number(p.rateBps.trim()), termsReference: p.termsReference.trim(), settlementHoldHours: Number(p.settlementHoldHours) }
+}
+
+/** Whether this admin may approve a version: it is proposed, and someone else proposed it. */
+export function canApproveTerms(version: { status?: string; proposedBy?: string }, adminUid: string | null | undefined): boolean {
+  return version.status === 'proposed' && !!adminUid && version.proposedBy !== adminUid
 }
 
 // ── Supplier logins (managed by the supplier portal's staff API) ────────────

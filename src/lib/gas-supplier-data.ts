@@ -13,8 +13,8 @@ import {
 import { db } from '@/lib/firebase'
 import type { Admin } from '@/types'
 import {
-  productId, transitionProblem,
-  type Product, type Station, type StationDetails, type Supplier, type SupplierDetails, type SupplierStatus,
+  productId, transitionProblem, payoutPreferenceProblem,
+  type PayoutPreference, type Product, type Station, type StationDetails, type Supplier, type SupplierDetails, type SupplierStatus,
   type GasOrderType, type CylinderSize, type GasBrand, type ProductAvailability,
 } from '@/lib/gas-suppliers'
 
@@ -110,6 +110,21 @@ export async function createSupplier(details: SupplierDetails, admin: Admin): Pr
 
 export async function updateSupplierDetails(id: string, details: Partial<SupplierDetails>, admin: Admin): Promise<void> {
   await updateDoc(supplierRef(id), clean({ ...details, updatedAt: serverTimestamp(), updatedBy: admin.uid }))
+}
+
+/**
+ * Records where the supplier wants settlements paid. While the supplier is a
+ * draft or pending verification any admin may set it (with the other
+ * details); after approval only a super admin, in a write of its own
+ * (firestore.rules). Nothing is paid: no payout integration exists.
+ */
+export async function setPayoutPreference(id: string, pref: PayoutPreference, admin: Admin): Promise<void> {
+  const problem = payoutPreferenceProblem(pref)
+  if (problem) throw new Error(problem)
+  await updateDoc(supplierRef(id), {
+    payoutPreference: { method: pref.method, accountNumber: pref.accountNumber.trim(), accountName: pref.accountName.trim() },
+    updatedAt: serverTimestamp(), updatedBy: admin.uid,
+  })
 }
 
 /** Moves a supplier along the workflow. Any status change turns orders off. */

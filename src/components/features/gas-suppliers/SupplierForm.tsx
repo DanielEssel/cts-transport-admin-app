@@ -3,10 +3,10 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
 import {
-  GAS_ORDER_TYPES, OPERATING_MODELS, RIDER_ARRANGEMENTS,
-  type Supplier, type SupplierDetails,
+  GAS_ORDER_TYPES, OPERATING_MODELS, PAYOUT_METHODS, RIDER_ARRANGEMENTS, payoutPreferenceProblem,
+  type PayoutPreference, type Supplier, type SupplierDetails,
 } from '@/lib/gas-suppliers'
-import { createSupplier, updateSupplierDetails } from '@/lib/gas-supplier-data'
+import { createSupplier, setPayoutPreference, updateSupplierDetails } from '@/lib/gas-supplier-data'
 import { CheckboxGroup, Field, Modal, Notice, Row, SectionTitle, Select, TextArea, TextInput, buttonStyle } from './ui'
 
 /** Creates a draft supplier, or edits one. */
@@ -24,19 +24,31 @@ export function SupplierForm({ supplier, onClose, onSaved }: {
   const identityLocked = !!supplier && !['draft', 'pending_verification'].includes(supplier.status)
   const set = <K extends keyof SupplierDetails>(k: K, v: SupplierDetails[K]) => setD((p) => ({ ...p, [k]: v }))
 
+  // After approval the payout destination is a super-admin change of its own.
+  const payoutLocked = identityLocked && admin?.role !== 'super_admin'
+  const pref = d.payoutPreference
+  const prefEntered = !!(pref && (pref.method || pref.accountNumber || pref.accountName))
+  const prefChanged = JSON.stringify(pref ?? null) !== JSON.stringify(supplier?.payoutPreference ?? null)
+
   const save = async () => {
     if (!admin) return
     if (!d.legalName?.trim()) { toast.error('Enter the legal or registered business name.'); return }
+    const prefProblem = prefEntered ? payoutPreferenceProblem(pref) : null
+    if (prefProblem) { toast.error(prefProblem); return }
+    const details = { ...d, payoutPreference: prefEntered ? pref : undefined }
     setSaving(true)
     try {
       if (supplier) {
         await updateSupplierDetails(supplier.id, identityLocked
           ? { contact: d.contact, verificationNotes: d.verificationNotes, internalNotes: d.internalNotes }
-          : d, admin)
+          : details, admin)
+        if (identityLocked && prefEntered && prefChanged && !payoutLocked) {
+          await setPayoutPreference(supplier.id, pref as PayoutPreference, admin)
+        }
         toast.success('Supplier updated')
         onSaved(supplier.id)
       } else {
-        const id = await createSupplier(d, admin)
+        const id = await createSupplier(details, admin)
         toast.success('Draft supplier created')
         onSaved(id)
       }
@@ -103,6 +115,22 @@ export function SupplierForm({ supplier, onClose, onSaved }: {
         <Select value={d.riderArrangement} options={RIDER_ARRANGEMENTS} onChange={(v) => set('riderArrangement', v)} disabled={identityLocked} />
       </Field>
 
+      <SectionTitle>Payout preference</SectionTitle>
+      <Notice>
+        Where this supplier wants its settlements paid. Recorded only: CTSGo does not send supplier payouts yet.
+        {identityLocked && ' After approval only a super admin can change it.'}
+      </Notice>
+      <Row>
+        <Field label="Method">
+          <Select value={pref?.method} options={PAYOUT_METHODS} disabled={payoutLocked} placeholder="Select…"
+            onChange={(v) => set('payoutPreference', { ...(pref ?? {}), method: v } as PayoutPreference)} />
+        </Field>
+        <Field label="Mobile-money number"><TextInput value={pref?.accountNumber} placeholder="0241234567" disabled={payoutLocked}
+          onChange={(v) => set('payoutPreference', { ...(pref ?? {}), accountNumber: v } as PayoutPreference)} /></Field>
+        <Field label="Registered account name"><TextInput value={pref?.accountName} disabled={payoutLocked}
+          onChange={(v) => set('payoutPreference', { ...(pref ?? {}), accountName: v } as PayoutPreference)} /></Field>
+      </Row>
+
       <SectionTitle>Review</SectionTitle>
       <Field label="Verification notes" hint="What has been checked, how, and what is still outstanding.">
         <TextArea value={d.verificationNotes} onChange={(v) => set('verificationNotes', v)} />
@@ -117,6 +145,7 @@ function pickDetails(s: Supplier): SupplierDetails {
     legalName: s.legalName, tradingName: s.tradingName, operatingModel: s.operatingModel,
     contact: { ...s.contact }, address: s.address, registration: { ...s.registration },
     fulfillment: { ...s.fulfillment }, riderArrangement: s.riderArrangement ?? 'undecided',
+    payoutPreference: s.payoutPreference ? { ...s.payoutPreference } : undefined,
     verificationNotes: s.verificationNotes, internalNotes: s.internalNotes,
   }
 }
