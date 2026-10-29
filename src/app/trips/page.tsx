@@ -123,11 +123,11 @@ export default function TripsPage() {
         <div>
           <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)' }}>Trips</h1>
           <p style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>
-            {filtered.length} trips · Platform revenue: <strong style={{ color: '#4ade80' }}>{formatCurrency(totalRevenue)}</strong>
+            {filtered.length} trips · Platform revenue: <strong style={{ color: 'var(--accent-text)' }}>{formatCurrency(totalRevenue)}</strong>
           </p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={handleExport} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(22,163,74,0.12)', border: '1px solid rgba(22,163,74,0.2)', borderRadius: '8px', padding: '8px 14px', color: '#4ade80', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
+          <button onClick={handleExport} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(22,163,74,0.12)', border: '1px solid rgba(22,163,74,0.2)', borderRadius: '8px', padding: '8px 14px', color: 'var(--accent-text)', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
             <Download size={14} /> Export CSV
           </button>
           <button onClick={load} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--surface-alt)', border: '1px solid var(--border)', borderRadius: '8px', padding: '8px 14px', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '13px' }}>
@@ -227,7 +227,7 @@ export default function TripsPage() {
                         </td>
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ fontWeight: 700, color: '#4ade80' }}>{formatCurrency(fare)}</span>
+                            <span style={{ fontWeight: 700, color: 'var(--accent-text)' }}>{formatCurrency(fare)}</span>
                             {trip.fareOverride && (
                               <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '4px', background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}>OVERRIDDEN</span>
                             )}
@@ -271,7 +271,7 @@ export default function TripsPage() {
               <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🏁 {editTrip.dropoffAddress}</div>
               <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'space-between' }}>
                 <span>Driver: <strong>{editTrip.driverName || '—'}</strong></span>
-                <span>Original: <strong style={{ color: '#4ade80' }}>{formatCurrency(editTrip.estimatedFare)}</strong></span>
+                <span>Original: <strong style={{ color: 'var(--accent-text)' }}>{formatCurrency(editTrip.estimatedFare)}</strong></span>
               </div>
             </div>
 

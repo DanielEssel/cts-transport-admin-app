@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { collection, onSnapshot, query, where, orderBy, limit, doc, updateDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useRouter } from 'next/navigation'
+import { Bell } from 'lucide-react'
 
 interface Alert {
   id: string
@@ -43,13 +44,16 @@ export function AdminAlertsBell() {
     <div style={{ position: 'relative' }}>
       <button
         onClick={() => setOpen(o => !o)}
-        style={{ position: 'relative', background: 'var(--surface-alt)', border: '1px solid #1e293b', borderRadius: '8px', padding: '8px', cursor: 'pointer', color: 'var(--text-secondary)', lineHeight: 0 }}
+        aria-label={count > 0 ? `Admin alerts, ${count} unread` : 'Admin alerts'}
+        aria-expanded={open}
+        className="btn btn-secondary"
+        style={{ position: 'relative', padding: '0 9px' }}
       >
-        🔔
+        <Bell size={17} aria-hidden />
         {count > 0 && (
           <span style={{
             position: 'absolute', top: -4, right: -4,
-            background: '#ef4444', color: '#fff',
+            background: 'var(--danger)', color: '#fff',
             fontSize: '10px', fontWeight: 700,
             minWidth: '16px', height: '16px', borderRadius: '8px',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -63,7 +67,7 @@ export function AdminAlertsBell() {
       {open && (
         <div style={{
           position: 'absolute', right: 0, top: '44px',
-          width: '320px', maxHeight: '400px', overflow: 'auto',
+          width: 'min(320px, calc(100vw - 32px))', maxHeight: '400px', overflow: 'auto',
           background: 'var(--surface)', border: '1px solid var(--border)',
           borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)', zIndex: 100,
         }}>

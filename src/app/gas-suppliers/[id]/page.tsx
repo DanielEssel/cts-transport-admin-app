@@ -20,6 +20,7 @@ import { SupplierForm } from '@/components/features/gas-suppliers/SupplierForm'
 import { StationForm } from '@/components/features/gas-suppliers/StationForm'
 import { ProductForm } from '@/components/features/gas-suppliers/ProductForm'
 import { SupplierLogins } from '@/components/features/gas-suppliers/SupplierLogins'
+import { SupplierRiders } from '@/components/features/gas-suppliers/SupplierRiders'
 import { Card, Field, KeyValue, Modal, Notice, OrdersBadge, TextArea, buttonStyle, inputStyle } from '@/components/features/gas-suppliers/ui'
 
 type StationRow = { station: Station; products: Product[] }
@@ -280,6 +281,9 @@ export default function SupplierDetailPage() {
 
       {/* Supplier logins (managed by the supplier portal's staff API) */}
       <SupplierLogins supplierId={supplier.id} />
+
+      {/* Linked riders (super-admin callables in gas_supplier_riders.js) */}
+      <SupplierRiders supplierId={supplier.id} />
 
       {/* History */}
       <Card title="History">

@@ -32,6 +32,35 @@ export type OperatingModel = typeof OPERATING_MODELS[number]
 export const RIDER_ARRANGEMENTS = ['undecided', 'supplier_riders', 'ctsgo_dispatch', 'supplier_riders_ctsgo_fallback'] as const
 export type RiderArrangement = typeof RIDER_ARRANGEMENTS[number]
 
+/**
+ * Arrangements whose orders CTSGo drivers can deliver today. Dispatch has no
+ * supplier riders yet, so a supplier relying only on its own riders cannot
+ * take orders (gas_supplier_orders.js optionProblem refuses it as well).
+ */
+export const DISPATCHABLE_RIDER_ARRANGEMENTS: readonly RiderArrangement[] = ['ctsgo_dispatch', 'supplier_riders_ctsgo_fallback']
+
+/** Mobile-money payout methods a supplier may choose (recorded only; payouts are not enabled). */
+export const PAYOUT_METHODS = ['mtn_momo', 'telecel_cash', 'at_money'] as const
+export type PayoutMethod = typeof PAYOUT_METHODS[number]
+
+export interface PayoutPreference {
+  method: PayoutMethod
+  /** 10-digit Ghana number, e.g. 0241234567. */
+  accountNumber: string
+  /** Name registered on the mobile-money account. */
+  accountName: string
+}
+
+/** Why a payout preference would be refused (firestore.rules payoutPreferenceOk), or null. */
+export function payoutPreferenceProblem(p: Partial<PayoutPreference> | null | undefined): string | null {
+  if (p == null) return null
+  if (!PAYOUT_METHODS.includes(p.method as PayoutMethod)) return 'Choose MTN MoMo, Telecel Cash or AT Money.'
+  if (typeof p.accountNumber !== 'string' || !/^0[0-9]{9}$/.test(p.accountNumber.trim())) return 'Enter the 10-digit mobile-money number, starting with 0.'
+  const name = typeof p.accountName === 'string' ? p.accountName.trim() : ''
+  if (name.length < 2 || name.length > 100) return 'Enter the name registered on the mobile-money account.'
+  return null
+}
+
 export const STATION_STATUSES = ['draft', 'verified', 'inactive'] as const
 export type StationStatus = typeof STATION_STATUSES[number]
 
@@ -42,6 +71,9 @@ export const PRODUCT_AVAILABILITY = ['unavailable', 'available', 'out_of_stock']
 export type ProductAvailability = typeof PRODUCT_AVAILABILITY[number]
 
 export const LABELS: Record<string, string> = {
+  mtn_momo: 'MTN MoMo',
+  telecel_cash: 'Telecel Cash',
+  at_money: 'AT Money',
   draft: 'Draft',
   pending_verification: 'Pending verification',
   approved: 'Approved',
@@ -88,6 +120,7 @@ export interface SupplierDetails {
   registration?: { businessRegNo?: string; licenceNo?: string; licenceExpiry?: string; notes?: string }
   fulfillment?: Fulfillment
   riderArrangement?: RiderArrangement
+  payoutPreference?: PayoutPreference
   verificationNotes?: string
   internalNotes?: string
 }
@@ -257,7 +290,8 @@ export function supplierReadiness(
   const checks: ReadinessCheck[] = [
     { id: 'approved', label: 'Supplier approved', ok: supplier.status === 'approved', detail: supplier.status === 'approved' ? undefined : `Status is ${label(supplier.status).toLowerCase()}` },
     { id: 'fulfillment', label: 'Fulfilment capabilities set', ok: types.length > 0 },
-    { id: 'riders', label: 'Rider arrangement decided', ok: !!supplier.riderArrangement && supplier.riderArrangement !== 'undecided' },
+    { id: 'riders', label: 'Rider arrangement CTSGo can deliver', ok: !!supplier.riderArrangement && DISPATCHABLE_RIDER_ARRANGEMENTS.includes(supplier.riderArrangement),
+      detail: supplier.riderArrangement === 'supplier_riders' ? 'Supplier riders only: dispatch cannot assign supplier riders yet. Choose CTSGo dispatch or supplier riders with CTSGo fallback.' : undefined },
     { id: 'station', label: 'At least one verified station with coordinates', ok: verified.length > 0 },
   ]
   for (const t of types) {

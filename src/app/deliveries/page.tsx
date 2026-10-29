@@ -61,7 +61,7 @@ export default function DeliveriesPage() {
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button onClick={() => exportToCSV(filtered.map(d => ({ id: d.id, status: d.status, pickup: d.pickupAddress, dropoff: d.dropoffAddress, parcel: d.parcelType, driver: d.driverName || '', fare: d.actualFare || d.estimatedFare || 0 })), 'deliveries')}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(22,163,74,0.12)', border: '1px solid rgba(22,163,74,0.2)', borderRadius: '8px', padding: '8px 14px', color: '#4ade80', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(22,163,74,0.12)', border: '1px solid rgba(22,163,74,0.2)', borderRadius: '8px', padding: '8px 14px', color: 'var(--accent-text)', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
             <Download size={14} /> Export CSV
           </button>
           <button onClick={load} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--surface-alt)', border: '1px solid var(--border)', borderRadius: '8px', padding: '8px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
@@ -129,7 +129,7 @@ export default function DeliveriesPage() {
                         </span>
                       </td>
                       <td style={{ fontSize: '12px', fontWeight: 600 }}>{d.driverName || '—'}</td>
-                      <td style={{ fontWeight: 700, color: '#4ade80' }}>
+                      <td style={{ fontWeight: 700, color: 'var(--accent-text)' }}>
                         {formatCurrency(d.actualFare || d.estimatedFare || 0)}
                       </td>
                       <td><StatusBadge status={d.status} /></td>

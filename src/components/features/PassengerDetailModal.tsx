@@ -130,7 +130,7 @@ export function PassengerDetailModal({ passenger, onClose }: PassengerDetailModa
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }}>
                   {[
-                    { label: 'Wallet Balance', value: `GH₵ ${(passenger.walletBalance || 0).toFixed(2)}`, color: '#4ade80' },
+                    { label: 'Wallet Balance', value: `GH₵ ${(passenger.walletBalance || 0).toFixed(2)}`, color: 'var(--accent-text)' },
                     { label: 'Total Trips',    value: passenger.tripCount ?? '—',                          color: '#60a5fa' },
                   ].map(stat => (
                     <div key={stat.label} style={{

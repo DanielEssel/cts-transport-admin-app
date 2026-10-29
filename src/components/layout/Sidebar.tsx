@@ -1,45 +1,12 @@
 "use client";
+// Grouped admin navigation (nav.ts). The pending-driver count is the same
+// query as before: unapproved drivers with documents, not suspended.
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { useRouter } from "next/navigation";
-import {
-  LayoutDashboard,
-  Users,
-  UserCheck,
-  Car,
-  Package,
-  Flame,
-  Wallet,
-  Bell,
-  Settings,
-  LogOut,
-  X,
-  ChevronRight,
-} from "lucide-react";
-import { MapPin, Headphones, Tag, ClipboardList, Factory } from "lucide-react";
-import { Truck, Scale } from "lucide-react";
-
-const links = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/drivers", icon: UserCheck, label: "Drivers" },
-  { href: "/passengers", icon: Users, label: "Passengers" },
-  { href: "/trips", icon: Car, label: "Trips" },
-  { href: "/deliveries", icon: Package, label: "Deliveries" },
-  { href: "/gas-orders", icon: Flame, label: "Gas Orders" },
-  { href: "/gas-suppliers", icon: Factory, label: "Gas Suppliers" },
-  { href: "/gas-supplier-orders", icon: Truck, label: "Supplier Orders" },
-  { href: "/gas-settlement", icon: Scale, label: "Gas Settlement" },
-  { href: "/withdrawals", icon: Wallet, label: "Withdrawals" },
-  { href: "/notifications", icon: Bell, label: "Notifications" },
-  { href: "/live-map", icon: MapPin, label: "Live Map" },
-  { href: "/support", icon: Headphones, label: "Support" },
-  { href: "/promotions", icon: Tag, label: "Promotions" },
-  { href: "/audit-log", icon: ClipboardList, label: "Audit Log" },
-  { href: "/settings", icon: Settings, label: "Settings" },
-  { href: "/ledger", icon: Wallet, label: "Ledger" },
-];
+import { LogOut, X } from "lucide-react";
+import { NAV_GROUPS, isActive } from "./nav";
 
 interface SidebarProps {
   onClose?: () => void;
@@ -47,27 +14,20 @@ interface SidebarProps {
 
 export function Sidebar({ onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { admin, signOut } = useAuth();
+  const { signOut } = useAuth();
   const router = useRouter();
   const [pendingDrivers, setPendingDrivers] = useState(0);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const { collection, getDocs, query, where } =
-          await import("firebase/firestore");
+        const { collection, getDocs, query, where } = await import("firebase/firestore");
         const { db } = await import("@/lib/firebase");
-        const snap = await getDocs(
-          query(collection(db, "drivers"), where("isApproved", "==", false)),
-        );
-        const pending = snap.docs.filter((d) => {
+        const snap = await getDocs(query(collection(db, "drivers"), where("isApproved", "==", false)));
+        setPendingDrivers(snap.docs.filter((d) => {
           const data = d.data();
-          return (
-            data.signupStep !== "suspended" &&
-            Object.keys(data.documents || {}).length > 0
-          );
-        }).length;
-        setPendingDrivers(pending);
+          return data.signupStep !== "suspended" && Object.keys(data.documents || {}).length > 0;
+        }).length);
       } catch {}
     };
     load();
@@ -81,246 +41,67 @@ export function Sidebar({ onClose }: SidebarProps) {
   };
 
   return (
-    <div
+    <aside
       style={{
-        width: "240px",
-        height: "100vh",
-        background: "#070d0f",
-        borderRight: "1px solid #1e293b",
-        display: "flex",
-        flexDirection: "column",
-        padding: "20px 12px",
-        flexShrink: 0,
-        overflowY: "auto",
-        overflowX: "hidden",
+        width: "248px", height: "100vh", background: "var(--sidebar-bg)",
+        borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column",
+        flexShrink: 0, overflowY: "auto", overflowX: "hidden", position: "relative",
       }}
     >
-      {onClose && (
-        <button
-          onClick={onClose}
-          style={{
-            position: "absolute",
-            top: "16px",
-            right: "12px",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "#64748b",
-          }}
-        >
-          <X size={18} />
-        </button>
-      )}
-
-      {/* Logo / Brand */}
-      <div
-        style={{
-          padding: "0 8px 24px",
-          borderBottom: "1px solid #0f1923",
-          marginBottom: "16px",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-          }}
-        >
-          {/* Company Logo */}
-          <div
-            style={{
-              width: "40px",
-              height: "40px",
-              borderRadius: "10px",
-              background: "#ffffff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-              overflow: "hidden",
-              boxShadow: "0 0 16px rgba(22, 163, 74, 0.15)",
-            }}
-          >
-            <img
-              src="/logo.png"
-              alt="Company Logo"
-              style={{
-                width: "32px",
-                height: "32px",
-                objectFit: "contain",
-              }}
-            />
-          </div>
-
-          {/* Brand Text */}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              minWidth: 0,
-            }}
-          >
-            <div
-              style={{
-                fontSize: "15px",
-                fontWeight: 800,
-                color: "#ffffff",
-                letterSpacing: "0.02em",
-                lineHeight: 1.2,
-                whiteSpace: "nowrap",
-              }}
-            >
-              CTS GO
-            </div>
-
-            <div
-              style={{
-                marginTop: "4px",
-                fontSize: "10px",
-                color: "#4ade80",
-                fontWeight: 600,
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                lineHeight: 1.2,
-                whiteSpace: "nowrap",
-              }}
-            >
-              Admin Panel
-            </div>
-          </div>
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "18px 18px 16px", borderBottom: "1px solid var(--border-light)" }}>
+        <div style={{
+          width: "36px", height: "36px", borderRadius: "10px", background: "#ffffff", border: "1px solid var(--border)",
+          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden",
+        }}>
+          <img src="/logo.png" alt="" style={{ width: "28px", height: "28px", objectFit: "contain" }} />
         </div>
+        <div style={{ minWidth: 0, lineHeight: 1.2 }}>
+          <div style={{ fontSize: "15px", fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.01em" }}>CTSGo</div>
+          <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--accent-text)", letterSpacing: "0.06em", textTransform: "uppercase" }}>Admin</div>
+        </div>
+        {onClose && (
+          <button onClick={onClose} aria-label="Close navigation" className="btn btn-secondary" style={{ marginLeft: "auto", padding: "0 8px", minHeight: "32px" }}>
+            <X size={16} />
+          </button>
+        )}
       </div>
 
-      {/* Nav links */}
-      <nav
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          gap: "2px",
-        }}
-      >
-        <div
-          style={{
-            fontSize: "10px",
-            fontWeight: 700,
-            color: "#64748b",
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-            padding: "0 12px",
-            marginBottom: "8px",
-          }}
-        >
-          Main Menu
-        </div>
-        {links.map(({ href, icon: Icon, label }) => {
-          const active = pathname === href || pathname.startsWith(href + "/");
-          return (
-            <Link
-              key={href}
-              href={href}
-              onClick={onClose}
-              className="sidebar-link"
-              style={{
-                background: active ? "rgba(22,163,74,0.12)" : "transparent",
-                color: active ? "#4ade80" : "var(--text-secondary)",
-              }}
-            >
-              <Icon
-                size={16}
-                style={{ flexShrink: 0, opacity: active ? 1 : 0.7 }}
-              />
-              {label}
-              {label === "Drivers" && pendingDrivers > 0 && (
-                <span
-                  style={{
-                    marginLeft: "auto",
-                    background: "#ef4444",
-                    color: "#fff",
-                    borderRadius: "10px",
-                    padding: "1px 6px",
-                    fontSize: "10px",
-                    fontWeight: 700,
-                    minWidth: "18px",
-                    textAlign: "center",
-                  }}
-                >
-                  {pendingDrivers}
-                </span>
-              )}
-              {active && label !== "Drivers" && (
-                <ChevronRight
-                  size={14}
-                  style={{ marginLeft: "auto", opacity: 0.6 }}
-                />
-              )}
-            </Link>
-          );
-        })}
+      <nav aria-label="Main" style={{ flex: 1, padding: "8px 12px 12px" }}>
+        {NAV_GROUPS.map((g) => (
+          <div key={g.label} style={{ marginTop: "12px" }}>
+            <div style={{
+              fontSize: "11px", fontWeight: 700, color: "var(--sidebar-heading)", letterSpacing: "0.08em",
+              textTransform: "uppercase", padding: "0 12px", marginBottom: "4px",
+            }}>{g.label}</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+              {g.links.map(({ href, icon: Icon, label }) => {
+                const active = isActive(pathname, href);
+                return (
+                  <Link key={href} href={href} onClick={onClose} aria-current={active ? "page" : undefined}
+                    className={`sidebar-link${active ? " active" : ""}`}>
+                    <Icon size={17} aria-hidden style={{ flexShrink: 0 }} />
+                    <span style={{ flex: 1 }}>{label}</span>
+                    {href === "/drivers" && pendingDrivers > 0 && (
+                      <span title={`${pendingDrivers} driver applications to review`} style={{
+                        background: active ? "rgba(255,255,255,0.22)" : "var(--tone-warning-bg)",
+                        color: active ? "#fff" : "var(--tone-warning-fg)",
+                        borderRadius: "999px", padding: "1px 7px", fontSize: "11px", fontWeight: 700,
+                      }}>{pendingDrivers}</span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
-      {/* User + logout */}
-      <div
-        style={{
-          borderTop: "1px solid #0f1923",
-          paddingTop: "16px",
-          marginTop: "8px",
-        }}
-      >
-        <div
-          style={{
-            padding: "10px 12px",
-            borderRadius: "10px",
-            marginBottom: "4px",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "13px",
-              fontWeight: 600,
-              color: "#f1f5f9",
-              marginBottom: "2px",
-            }}
-          >
-            {admin?.fullName || "Admin"}
-          </div>
-          <div
-            style={{
-              fontSize: "11px",
-              color: "#64748b",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-            }}
-          >
-            <span
-              style={{
-                width: "6px",
-                height: "6px",
-                borderRadius: "50%",
-                background: "#4ade80",
-                display: "inline-block",
-              }}
-            />
-            {admin?.role === "super_admin" ? "Super Admin" : "Admin"}
-          </div>
-        </div>
-        <button
-          onClick={handleSignOut}
-          className="sidebar-link"
-          style={{
-            width: "100%",
-            border: "none",
-            color: "#ef4444",
-            background: "none",
-          }}
-        >
-          <LogOut size={16} />
-          Sign Out
+      <div style={{ borderTop: "1px solid var(--border-light)", padding: "12px" }}>
+        <button onClick={handleSignOut} className="sidebar-link" style={{ width: "100%", border: "none", background: "none", color: "var(--danger)" }}>
+          <LogOut size={17} aria-hidden />
+          Sign out
         </button>
       </div>
-    </div>
+    </aside>
   );
 }

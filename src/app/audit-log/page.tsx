@@ -19,20 +19,20 @@ interface AuditEntry {
 }
 
 const ACTION_COLORS: Record<string, string> = {
-  approve_driver:   '#4ade80',
+  approve_driver:   'var(--accent-text)',
   reject_driver:    '#f87171',
   suspend_driver:   '#fbbf24',
   unsuspend_driver: '#60a5fa',
-  approve_withdrawal: '#4ade80',
+  approve_withdrawal: 'var(--accent-text)',
   reject_withdrawal:  '#f87171',
   mark_paid:          '#a78bfa',
-  wallet_topup:       '#4ade80',
+  wallet_topup:       'var(--accent-text)',
   wallet_deduct:      '#f87171',
   send_notification:  '#60a5fa',
   create_promotion:   '#fb923c',
   delete_promotion:   '#f87171',
   update_settings:    '#94a3b8',
-  resolve_ticket:     '#4ade80',
+  resolve_ticket:     'var(--accent-text)',
 }
 
 export default function AuditLogPage() {

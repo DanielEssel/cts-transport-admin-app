@@ -160,7 +160,7 @@ export default function SupportPage() {
                         <span style={{
                           fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '6px',
                           background: ticket.userRole === 'driver' ? 'rgba(22,163,74,0.12)' : 'rgba(2,132,199,0.12)',
-                          color: ticket.userRole === 'driver' ? '#4ade80' : '#60a5fa'
+                          color: ticket.userRole === 'driver' ? 'var(--accent-text)' : '#60a5fa'
                         }}>{ticket.userRole || 'passenger'}</span>
                       </td>
                       <td style={{ fontSize: '12px', textTransform: 'capitalize' }}>{ticket.category || 'General'}</td>

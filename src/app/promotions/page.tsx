@@ -149,7 +149,7 @@ export default function PromotionsPage() {
                     <span style={{
                       fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px',
                       background: promo.active ? 'rgba(22,163,74,0.12)' : 'rgba(239,68,68,0.12)',
-                      color: promo.active ? '#4ade80' : '#f87171'
+                      color: promo.active ? 'var(--accent-text)' : '#f87171'
                     }}>{promo.active ? 'Active' : 'Hidden'}</span>
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{formatDate(promo.createdAt)}</div>

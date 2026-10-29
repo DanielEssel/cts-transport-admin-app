@@ -7,6 +7,7 @@ import { Withdrawal } from '@/types'
 import { StatusBadge, EmptyState, TableSkeleton, StatsCard } from '@/components/shared'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { toast } from 'sonner'
+import { useAuth } from '@/lib/auth-context'
 import { Wallet, Search, RefreshCw, CheckCircle, XCircle, CreditCard, Download } from 'lucide-react'
 import { exportToCSV } from '@/lib/export'
 import { canResolvePayout, payoutStateLabel, MIN_EVIDENCE_LENGTH } from '@/lib/withdrawal-actions'
@@ -23,6 +24,8 @@ type FilterStatus = 'all' | 'pending' | 'processing' | 'completed' | 'rejected' 
 type ActionType = 'resolve'
 
 export default function WithdrawalsPage() {
+  const { admin } = useAuth()
+  const isSuper = admin?.role === 'super_admin'
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([])
   const [filtered, setFiltered] = useState<Withdrawal[]>([])
   const [loading, setLoading] = useState(true)
@@ -198,7 +201,12 @@ export default function WithdrawalsPage() {
                               No action
                             </span>
                           )}
-                          {canResolvePayout(w) && (
+                          {canResolvePayout(w) && !isSuper && (
+                            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                              Only a super admin can approve or resolve withdrawals.
+                            </span>
+                          )}
+                          {canResolvePayout(w) && isSuper && (
                             <button onClick={() => { setSelected(w); setActionType('resolve') }}
                               style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(217,119,6,0.15)', color: '#fbbf24', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}>
                               Confirm result

@@ -2,111 +2,155 @@
 import { ReactNode } from 'react'
 import { TrendingUp, TrendingDown } from 'lucide-react'
 
-// ── Stats Card ────────────────────────────────────────────────────────────────
+// ── Stats Card (KPI) ──────────────────────────────────────────────────────────
 interface StatsCardProps {
   title: string
   value: string | number
   icon: ReactNode
   iconColor?: string
   iconBg?: string
+  /** A real comparison only; never a placeholder figure. */
   trend?: { value: number; label: string }
+  /** A short qualifier under the value, e.g. "last 7 days". */
+  hint?: string
   loading?: boolean
 }
 
-export function StatsCard({ title, value, icon, iconColor = '#16a34a', iconBg = '#dcfce7', trend, loading }: StatsCardProps) {
+export function StatsCard({ title, value, icon, iconColor = 'var(--accent-text)', iconBg = 'var(--primary-dim)', trend, hint, loading }: StatsCardProps) {
   if (loading) return (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '20px' }}>
-      <div className="skeleton" style={{ height: '14px', width: '60%', marginBottom: '12px' }} />
-      <div className="skeleton" style={{ height: '32px', width: '40%', marginBottom: '8px' }} />
-      <div className="skeleton" style={{ height: '12px', width: '50%' }} />
+    <div className="stat-card" aria-busy="true">
+      <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+        <div className="skeleton" style={{ width: '44px', height: '44px', borderRadius: '12px' }} />
+        <div style={{ flex: 1 }}>
+          <div className="skeleton" style={{ height: '12px', width: '60%', marginBottom: '10px' }} />
+          <div className="skeleton" style={{ height: '24px', width: '45%' }} />
+        </div>
+      </div>
     </div>
   )
 
   return (
-    <div className="stat-card" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
-        <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>{title}</span>
-        <div style={{
-          width: '36px', height: '36px', borderRadius: '10px',
-          background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: iconColor
-        }}>
-          {icon}
-        </div>
-      </div>
-      <div style={{
-        fontFamily: "'Syne', sans-serif",
-        fontSize: '28px', fontWeight: 800, color: 'var(--text-primary)',
-        letterSpacing: '-0.5px', lineHeight: 1, marginBottom: '8px'
+    <div className="stat-card" style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+      <div aria-hidden style={{
+        width: '44px', height: '44px', borderRadius: '12px', flexShrink: 0,
+        background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: iconColor,
       }}>
-        {value}
+        {icon}
       </div>
-      {trend && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          {trend.value >= 0
-            ? <TrendingUp size={12} style={{ color: '#4ade80' }} />
-            : <TrendingDown size={12} style={{ color: '#ef4444' }} />
-          }
-          <span style={{
-            fontSize: '11px', fontWeight: 600,
-            color: trend.value >= 0 ? '#4ade80' : '#ef4444'
-          }}>
-            {trend.value >= 0 ? '+' : ''}{trend.value}%
-          </span>
-          <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{trend.label}</span>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: '4px' }}>{title}</div>
+        <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>
+          {value}
         </div>
-      )}
+        {hint && <div style={{ fontSize: '11.5px', color: 'var(--text-tertiary)', marginTop: '4px' }}>{hint}</div>}
+        {trend && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+            {trend.value >= 0
+              ? <TrendingUp size={12} style={{ color: 'var(--tone-success-fg)' }} />
+              : <TrendingDown size={12} style={{ color: 'var(--tone-danger-fg)' }} />}
+            <span style={{ fontSize: '11.5px', fontWeight: 700, color: trend.value >= 0 ? 'var(--tone-success-fg)' : 'var(--tone-danger-fg)' }}>
+              {trend.value >= 0 ? '+' : ''}{trend.value}%
+            </span>
+            <span style={{ fontSize: '11.5px', color: 'var(--text-tertiary)' }}>{trend.label}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Page header and panels ────────────────────────────────────────────────────
+export function PageHeader({ title, description, actions }: { title: string; description?: ReactNode; actions?: ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+      <div style={{ minWidth: 0 }}>
+        <h2 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{title}</h2>
+        {description && <p style={{ fontSize: '13.5px', color: 'var(--text-tertiary)', marginTop: '4px' }}>{description}</p>}
+      </div>
+      {actions && <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>{actions}</div>}
+    </div>
+  )
+}
+
+export function Panel({ title, subtitle, actions, children, padded = true }: {
+  title: string; subtitle?: ReactNode; actions?: ReactNode; children: ReactNode; padded?: boolean
+}) {
+  return (
+    <section className="card" style={{ overflow: 'hidden', minWidth: 0 }}>
+      <div className="card-header">
+        <div style={{ minWidth: 0 }}>
+          <h3 className="card-title">{title}</h3>
+          {subtitle && <p className="card-subtitle">{subtitle}</p>}
+        </div>
+        {actions}
+      </div>
+      <div style={padded ? { padding: '16px 20px' } : undefined}>{children}</div>
+    </section>
+  )
+}
+
+/** A failed load: says what failed, never shows it as empty. */
+export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  return (
+    <div role="alert" style={{
+      display: 'flex', gap: '12px', alignItems: 'flex-start', flexWrap: 'wrap',
+      background: 'var(--tone-danger-bg)', color: 'var(--tone-danger-fg)',
+      borderRadius: 'var(--radius-control)', padding: '12px 14px', fontSize: '13px', lineHeight: 1.5,
+    }}>
+      <span style={{ flex: 1, minWidth: '200px' }}>{message}</span>
+      {onRetry && <button className="btn btn-secondary" onClick={onRetry} style={{ minHeight: '30px' }}>Try again</button>}
     </div>
   )
 }
 
 // ── Status Badge ──────────────────────────────────────────────────────────────
-const statusConfig: Record<string, { bg: string; color: string; label: string }> = {
+type Tone = 'success' | 'warning' | 'danger' | 'info' | 'neutral'
+const statusConfig: Record<string, { tone: Tone; label: string }> = {
   // Trips
-  searching:              { bg: '#1e3a5f', color: '#60a5fa', label: 'Searching' },
-  tripAccepted:           { bg: '#1e3a2a', color: '#4ade80', label: 'Accepted' },
-  driverArrived:          { bg: '#2a2a1e', color: '#facc15', label: 'Arrived' },
-  tripStarted:            { bg: '#1e2a3a', color: '#60a5fa', label: 'In Progress' },
-  inProgress:             { bg: '#1e2a3a', color: '#60a5fa', label: 'In Progress' },
-  completed:              { bg: '#1a3a1a', color: '#4ade80', label: 'Completed' },
-  delivered:              { bg: '#1a3a1a', color: '#4ade80', label: 'Delivered' },
-  cancelledByDriver:      { bg: '#3a1a1a', color: '#f87171', label: 'Cancelled' },
-  cancelledByPassenger:   { bg: '#3a1a1a', color: '#f87171', label: 'Cancelled' },
-  cancelled:              { bg: '#3a1a1a', color: '#f87171', label: 'Cancelled' },
+  searching:              { tone: 'info', label: 'Searching' },
+  tripAccepted:           { tone: 'success', label: 'Accepted' },
+  driverArrived:          { tone: 'warning', label: 'Arrived' },
+  tripStarted:            { tone: 'info', label: 'In Progress' },
+  inProgress:             { tone: 'info', label: 'In Progress' },
+  completed:              { tone: 'success', label: 'Completed' },
+  delivered:              { tone: 'success', label: 'Delivered' },
+  cancelledByDriver:      { tone: 'danger', label: 'Cancelled' },
+  cancelledByPassenger:   { tone: 'danger', label: 'Cancelled' },
+  cancelled:              { tone: 'danger', label: 'Cancelled' },
   // Drivers
-  approved:               { bg: '#1a3a1a', color: '#4ade80', label: 'Approved' },
-  pending:                { bg: '#2a2a1e', color: '#facc15', label: 'Pending' },
-  pendingApproval:        { bg: '#2a2a1e', color: '#facc15', label: 'Pending' },
-  suspended:              { bg: '#3a1a1a', color: '#f87171', label: 'Suspended' },
-  rejected:               { bg: '#3a1a1a', color: '#f87171', label: 'Rejected' },
+  approved:               { tone: 'success', label: 'Approved' },
+  pending:                { tone: 'warning', label: 'Pending' },
+  pendingApproval:        { tone: 'warning', label: 'Pending' },
+  suspended:              { tone: 'danger', label: 'Suspended' },
+  rejected:               { tone: 'danger', label: 'Rejected' },
   // Withdrawals
-  paid:                   { bg: '#1a3a1a', color: '#4ade80', label: 'Paid' },
+  paid:                   { tone: 'success', label: 'Paid' },
   // Online
-  online:                 { bg: '#1a3a1a', color: '#4ade80', label: 'Online' },
-  offline:                { bg: 'var(--border)', color: 'var(--text-secondary)', label: 'Offline' },
+  online:                 { tone: 'success', label: 'Online' },
+  offline:                { tone: 'neutral', label: 'Offline' },
   // Gas
-  pendingReview:          { bg: '#2a2a1e', color: '#facc15', label: 'Pending Review' },
-  driverAssigned:         { bg: '#1e3a5f', color: '#60a5fa', label: 'Driver Assigned' },
-  driverEnRoute:          { bg: '#1e2a3a', color: '#60a5fa', label: 'En Route' },
+  pendingReview:          { tone: 'warning', label: 'Pending Review' },
+  driverAssigned:         { tone: 'info', label: 'Driver Assigned' },
+  driverEnRoute:          { tone: 'info', label: 'En Route' },
   // Gas suppliers, stations and products
-  draft:                  { bg: 'var(--border)', color: 'var(--text-secondary)', label: 'Draft' },
-  pending_verification:   { bg: '#2a2a1e', color: '#facc15', label: 'Pending verification' },
-  verified:               { bg: '#1a3a1a', color: '#4ade80', label: 'Verified' },
-  unverified:             { bg: '#2a2a1e', color: '#facc15', label: 'Unverified' },
-  inactive:               { bg: 'var(--border)', color: 'var(--text-secondary)', label: 'Inactive' },
-  available:              { bg: '#1a3a1a', color: '#4ade80', label: 'Available' },
-  unavailable:            { bg: 'var(--border)', color: 'var(--text-secondary)', label: 'Unavailable' },
-  out_of_stock:           { bg: '#3a1a1a', color: '#f87171', label: 'Out of stock' },
+  draft:                  { tone: 'neutral', label: 'Draft' },
+  pending_verification:   { tone: 'warning', label: 'Pending verification' },
+  verified:               { tone: 'success', label: 'Verified' },
+  unverified:             { tone: 'warning', label: 'Unverified' },
+  inactive:               { tone: 'neutral', label: 'Inactive' },
+  available:              { tone: 'success', label: 'Available' },
+  unavailable:            { tone: 'neutral', label: 'Unavailable' },
+  out_of_stock:           { tone: 'danger', label: 'Out of stock' },
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  const cfg = statusConfig[status] || { bg: 'var(--border)', color: 'var(--text-secondary)', label: status }
+  const cfg = statusConfig[status] || { tone: 'neutral' as Tone, label: status }
   return (
     <span style={{
-      padding: '3px 10px', borderRadius: '20px',
-      fontSize: '11px', fontWeight: 700,
-      background: cfg.bg, color: cfg.color,
-      letterSpacing: '0.02em', display: 'inline-block', whiteSpace: 'nowrap'
+      padding: '3px 10px', borderRadius: '999px',
+      fontSize: '11.5px', fontWeight: 700,
+      background: `var(--tone-${cfg.tone}-bg)`, color: `var(--tone-${cfg.tone}-fg)`,
+      display: 'inline-block', whiteSpace: 'nowrap', lineHeight: 1.5,
     }}>
       {cfg.label}
     </span>
@@ -118,15 +162,15 @@ export function EmptyState({ icon, title, description }: {
   icon: ReactNode; title: string; description?: string
 }) {
   return (
-    <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-tertiary)' }}>
-      <div style={{
-        width: '56px', height: '56px', borderRadius: '16px',
-        background: 'var(--surface-alt)', display: 'flex', alignItems: 'center',
-        justifyContent: 'center', margin: '0 auto 16px', color: 'var(--text-tertiary)'
+    <div style={{ textAlign: 'center', padding: '48px 20px', color: 'var(--text-tertiary)' }}>
+      <div aria-hidden style={{
+        width: '52px', height: '52px', borderRadius: '14px',
+        background: 'var(--primary-dim)', display: 'flex', alignItems: 'center',
+        justifyContent: 'center', margin: '0 auto 14px', color: 'var(--accent-text)'
       }}>
         {icon}
       </div>
-      <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>{title}</h3>
+      <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px' }}>{title}</h3>
       {description && <p style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>{description}</p>}
     </div>
   )
@@ -154,7 +198,8 @@ export function TableSkeleton({ rows = 5, cols = 5 }: { rows?: number; cols?: nu
 }
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
-const avatarColors = ['#16a34a','#0284c7','#7c3aed','#db2777','#d97706','#0891b2']
+// Darker shades so white initials stay readable (≥ 4.5:1).
+const avatarColors = ['#15803d','#0369a1','#6d28d9','#be185d','#b45309','#0e7490']
 
 export function Avatar({ name, photoUrl, size = 32 }: { name: string; photoUrl?: string; size?: number }) {
   const initials = name.trim().split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2)
@@ -176,9 +221,10 @@ export function Avatar({ name, photoUrl, size = 32 }: { name: string; photoUrl?:
 }
 
 // ── Confirm Dialog ────────────────────────────────────────────────────────────
+/** Confirms a sensitive action. Red by default, so destructive steps stand out. */
 export function ConfirmDialog({
   open, title, description, confirmLabel = 'Confirm',
-  confirmColor = '#ef4444', onConfirm, onCancel, loading
+  confirmColor = 'var(--danger)', onConfirm, onCancel, loading
 }: {
   open: boolean; title: string; description: string;
   confirmLabel?: string; confirmColor?: string;
@@ -186,26 +232,21 @@ export function ConfirmDialog({
 }) {
   if (!open) return null
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} onClick={onCancel} />
-      <div style={{
-        position: 'relative', background: 'var(--surface)', border: '1px solid var(--border)',
-        borderRadius: '20px', padding: '28px', width: '90%', maxWidth: '400px',
-        boxShadow: '0 24px 64px rgba(0,0,0,0.6)'
-      }}>
-        <h3 style={{ fontFamily: "'Syne', sans-serif", fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '10px' }}>{title}</h3>
-        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '24px', lineHeight: 1.6 }}>{description}</p>
-        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-          <button onClick={onCancel} style={{
-            padding: '9px 18px', borderRadius: '8px', border: '1px solid var(--border)',
-            background: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '13px', fontWeight: 600
-          }}>Cancel</button>
-          <button onClick={onConfirm} disabled={loading} style={{
-            padding: '9px 18px', borderRadius: '8px', border: 'none',
-            background: confirmColor, color: '#fff', cursor: loading ? 'not-allowed' : 'pointer',
-            fontSize: '13px', fontWeight: 700, opacity: loading ? 0.7 : 1
-          }}>
-            {loading ? 'Processing...' : confirmLabel}
+    <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+      <div style={{ position: 'absolute', inset: 0, background: 'var(--overlay)' }} onClick={onCancel} />
+      <div role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-desc"
+        onKeyDown={(e) => { if (e.key === 'Escape') onCancel() }}
+        style={{
+          position: 'relative', background: 'var(--surface)', border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-card)', padding: '24px', width: '100%', maxWidth: '420px',
+          boxShadow: '0 24px 64px rgba(15,61,36,0.18)'
+        }}>
+        <h3 id="confirm-title" style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>{title}</h3>
+        <p id="confirm-desc" style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '22px', lineHeight: 1.6 }}>{description}</p>
+        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+          <button autoFocus onClick={onCancel} className="btn btn-secondary">Cancel</button>
+          <button onClick={onConfirm} disabled={loading} className="btn" style={{ background: confirmColor, color: '#fff' }}>
+            {loading ? 'Processing…' : confirmLabel}
           </button>
         </div>
       </div>

@@ -1,288 +1,295 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { collection, getDocs, query, where, orderBy, limit, Timestamp } from 'firebase/firestore'
+// Platform overview. Every figure is read from Firestore through the same
+// rules as the rest of the dashboard; nothing is estimated or hard-coded.
+// Revenue is not shown here: a fee figure needs the recorded ledger entries
+// (Ledger page), not an assumed percentage of fares.
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import {
+  collection, getCountFromServer, getDocs, limit, orderBy, query, Timestamp, where,
+} from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { StatsCard, StatusBadge, TableSkeleton } from '@/components/shared'
+import { EmptyState, ErrorState, PageHeader, Panel, StatsCard, StatusBadge, TableSkeleton } from '@/components/shared'
 import { formatCurrency, timeAgo } from '@/lib/utils'
+import { listSuppliers } from '@/lib/gas-supplier-data'
+import { gasLoadError } from '@/lib/gas-supplier-ops'
 import {
-  Users, UserCheck, Car, Clock, Wallet, TrendingUp} from 'lucide-react'
-import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, Tooltip, ResponsiveContainer
-} from 'recharts'
+  READ_CAP, RANGES, countBy, dailyActivity, outcomes, rangeStart, toMillis,
+  type ActivityRecord, type RangeDays, type Service,
+} from '@/lib/dashboard-metrics'
+import { Car, Clock, Factory, Flame, RefreshCw, Users, UserCheck, Wallet, Radio } from 'lucide-react'
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
-interface DashboardStats {
-  totalDrivers: number
-  totalPassengers: number
-  pendingApprovals: number
-  pendingWithdrawals: number
-  todayRevenue: number
-  activeTrips: number
+interface Counts {
+  drivers: number; driversOnline: number; passengers: number
+  activeTrips: number; pendingApprovals: number; pendingWithdrawals: number
 }
+interface RecentTrip { id: string; pickupAddress?: string; status: string; estimatedFare?: number; createdAt: unknown }
+interface RecentWithdrawal { id: string; amount: number; method?: string; status: string; role?: string; createdAt: unknown }
 
-interface RecentTrip {
-  id: string
-  pickupAddress: string
-  dropoffAddress: string
-  status: string
-  estimatedFare: number
-  driverName?: string
-  createdAt: any
-}
-
-interface RecentWithdrawal {
-  id: string
-  userId: string
-  amount: number
-  method: string
-  status: string
-  createdAt: any
-  role: string
-}
-
-const weeklyData = [
-  { day: 'Mon', revenue: 1240, trips: 48 },
-  { day: 'Tue', revenue: 1680, trips: 62 },
-  { day: 'Wed', revenue: 1420, trips: 54 },
-  { day: 'Thu', revenue: 1890, trips: 71 },
-  { day: 'Fri', revenue: 2340, trips: 89 },
-  { day: 'Sat', revenue: 2780, trips: 104 },
-  { day: 'Sun', revenue: 1950, trips: 73 },
+const SERVICES: Array<{ key: Service; collection: string; label: string; color: string; href: string }> = [
+  { key: 'rides', collection: 'trips', label: 'Rides', color: 'var(--chart-1)', href: '/trips' },
+  { key: 'deliveries', collection: 'deliveries', label: 'Deliveries', color: 'var(--chart-2)', href: '/deliveries' },
+  { key: 'gas', collection: 'gas_orders', label: 'Gas orders', color: 'var(--chart-3)', href: '/gas-orders' },
 ]
 
-const serviceData = [
-  { name: 'Okada', value: 58, color: '#16a34a' },
-  { name: 'Taxi', value: 24, color: '#0284c7' },
-  { name: 'Delivery', value: 13, color: '#7c3aed' },
-  { name: 'Gas', value: 5, color: '#d97706' },
-]
+const count = async (q: Parameters<typeof getCountFromServer>[0]) => (await getCountFromServer(q)).data().count
+const fmt = (n: number) => n.toLocaleString('en-GH')
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [recentTrips, setRecentTrips] = useState<RecentTrip[]>([])
-  const [recentWithdrawals, setRecentWithdrawals] = useState<RecentWithdrawal[]>([])
-  const [loading, setLoading] = useState(true)
+  const [range, setRange] = useState<RangeDays>(7)
+  const [counts, setCounts] = useState<Counts | null>(null)
+  const [countsError, setCountsError] = useState<string | null>(null)
+  const [activity, setActivity] = useState<ActivityRecord[] | null>(null)
+  const [capped, setCapped] = useState<Service[]>([])
+  const [activityError, setActivityError] = useState<string | null>(null)
+  const [suppliers, setSuppliers] = useState<Array<{ key: string; count: number }> | null>(null)
+  const [suppliersError, setSuppliersError] = useState<string | null>(null)
+  const [recentTrips, setRecentTrips] = useState<RecentTrip[] | null>(null)
+  const [recentWithdrawals, setRecentWithdrawals] = useState<RecentWithdrawal[] | null>(null)
+  const [now, setNow] = useState(() => Date.now())
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const [driversSnap, passengersSnap, pendingDriversSnap, withdrawalsSnap, tripsSnap, recentTripsSnap, recentWithdrawalsSnap] = await Promise.all([
-          getDocs(collection(db, 'drivers')),
-          getDocs(collection(db, 'users')),
-          getDocs(query(collection(db, 'drivers'), where('isApproved', '==', false), where('documentsUploaded', '==', true))),
-          getDocs(query(collection(db, 'withdrawals'), where('status', '==', 'pending'))),
-          getDocs(query(collection(db, 'trips'), where('status', 'in', ['tripAccepted', 'driverArrived', 'tripStarted']))),
-          getDocs(query(collection(db, 'trips'), orderBy('createdAt', 'desc'), limit(8))),
-          getDocs(query(collection(db, 'withdrawals'), orderBy('createdAt', 'desc'), limit(6))),
-        ])
-
-        // Today revenue from completed trips today
-        const todayStart = new Date(); todayStart.setHours(0,0,0,0)
-        const todayTrips = await getDocs(query(
-          collection(db, 'trips'),
-          where('status', '==', 'completed'),
-          where('completedAt', '>=', Timestamp.fromDate(todayStart))
-        ))
-        const todayRevenue = todayTrips.docs.reduce((sum, d) => {
-          const fare = d.data().actualFare || d.data().estimatedFare || 0
-          return sum + fare * 0.15 // 15% platform fee
-        }, 0)
-
-        setStats({
-          totalDrivers:       driversSnap.size,
-          totalPassengers:    passengersSnap.size,
-          pendingApprovals:   pendingDriversSnap.size,
-          pendingWithdrawals: withdrawalsSnap.size,
-          todayRevenue,
-          activeTrips:        tripsSnap.size,
-        })
-
-        setRecentTrips(recentTripsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as RecentTrip[])
-        setRecentWithdrawals(recentWithdrawalsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as RecentWithdrawal[])
-      } catch (e) {
-        console.error(e)
-      } finally {
-        setLoading(false)
-      }
+  const loadCounts = useCallback(async () => {
+    setCountsError(null)
+    try {
+      const [drivers, driversOnline, passengers, activeTrips, pendingApprovals, pendingWithdrawals] = await Promise.all([
+        count(collection(db, 'drivers')),
+        count(query(collection(db, 'drivers'), where('isOnline', '==', true))),
+        count(collection(db, 'users')),
+        count(query(collection(db, 'trips'), where('status', 'in', ['tripAccepted', 'driverArrived', 'tripStarted']))),
+        count(query(collection(db, 'drivers'), where('isApproved', '==', false), where('documentsUploaded', '==', true))),
+        count(query(collection(db, 'withdrawals'), where('status', '==', 'pending'))),
+      ])
+      setCounts({ drivers, driversOnline, passengers, activeTrips, pendingApprovals, pendingWithdrawals })
+    } catch (e: any) {
+      console.error('dashboard counts', e?.code ?? e)
+      setCountsError(`Could not load platform totals: ${e?.code || e?.message || e}`)
     }
-    load()
   }, [])
 
+  const loadActivity = useCallback(async (days: number) => {
+    setActivity(null); setActivityError(null)
+    const t = Date.now(); setNow(t)
+    const since = Timestamp.fromMillis(rangeStart(days, t))
+    try {
+      const snaps = await Promise.all(SERVICES.map((s) =>
+        getDocs(query(collection(db, s.collection), where('createdAt', '>=', since), orderBy('createdAt', 'desc'), limit(READ_CAP)))))
+      const records: ActivityRecord[] = []
+      const hitCap: Service[] = []
+      snaps.forEach((snap, i) => {
+        if (snap.size >= READ_CAP) hitCap.push(SERVICES[i].key)
+        for (const d of snap.docs) {
+          const v = d.data()
+          records.push({ service: SERVICES[i].key, status: String(v.status ?? ''), createdAtMs: toMillis(v.createdAt) })
+        }
+      })
+      setActivity(records); setCapped(hitCap)
+    } catch (e: any) {
+      console.error('dashboard activity', e?.code ?? e)
+      setActivity([])
+      setActivityError(`Could not load activity: ${e?.code || e?.message || e}`)
+    }
+  }, [])
+
+  const loadRest = useCallback(async () => {
+    setSuppliers(null); setSuppliersError(null)
+    listSuppliers()
+      .then((list) => setSuppliers(countBy(list, (s) => s.status)))
+      .catch((e) => { setSuppliers([]); setSuppliersError(gasLoadError(e, 'gas_suppliers', 'Gas suppliers')) })
+    try {
+      const [t, w] = await Promise.all([
+        getDocs(query(collection(db, 'trips'), orderBy('createdAt', 'desc'), limit(6))),
+        getDocs(query(collection(db, 'withdrawals'), orderBy('createdAt', 'desc'), limit(6))),
+      ])
+      setRecentTrips(t.docs.map((d) => ({ id: d.id, ...d.data() }) as RecentTrip))
+      setRecentWithdrawals(w.docs.map((d) => ({ id: d.id, ...d.data() }) as RecentWithdrawal))
+    } catch (e: any) {
+      console.error('dashboard recent', e?.code ?? e)
+      setRecentTrips([]); setRecentWithdrawals([])
+    }
+  }, [])
+
+  useEffect(() => { loadCounts(); loadRest() }, [loadCounts, loadRest])
+  useEffect(() => { loadActivity(range) }, [range, loadActivity])
+
+  const daily = useMemo(() => (activity ? dailyActivity(activity, range, now) : []), [activity, range, now])
+  const result = useMemo(() => outcomes(activity ?? []), [activity])
+  const refresh = () => { setCounts(null); loadCounts(); loadActivity(range); loadRest() }
+  const rangeLabel = RANGES.find((r) => r.days === range)!.label
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <PageHeader
+        title="Platform overview"
+        description={new Date(now).toLocaleDateString('en-GH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+        actions={<button className="btn btn-secondary" onClick={refresh}><RefreshCw size={14} aria-hidden /> Refresh</button>}
+      />
 
-      {/* Welcome */}
-      <div>
-        <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px' }}>
-          Platform Overview
-        </h1>
-        <p style={{ fontSize: '14px', color: 'var(--text-tertiary)' }}>
-          {new Date().toLocaleDateString('en-GH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-        </p>
+      {countsError && <ErrorState message={countsError} onRetry={loadCounts} />}
+      <div className="grid-kpi">
+        <StatsCard title="Drivers" value={counts ? fmt(counts.drivers) : '—'} hint={counts ? `${fmt(counts.driversOnline)} online now` : undefined}
+          icon={<UserCheck size={20} />} loading={!counts && !countsError} />
+        <StatsCard title="Passengers" value={counts ? fmt(counts.passengers) : '—'} hint="Registered accounts"
+          icon={<Users size={20} />} iconColor="var(--tone-info-fg)" iconBg="var(--tone-info-bg)" loading={!counts && !countsError} />
+        <StatsCard title="Active rides" value={counts ? fmt(counts.activeTrips) : '—'} hint="Accepted, arrived or started"
+          icon={<Radio size={20} />} iconColor="var(--tone-info-fg)" iconBg="var(--tone-info-bg)" loading={!counts && !countsError} />
+        <StatsCard title="Driver approvals" value={counts ? fmt(counts.pendingApprovals) : '—'} hint="Documents uploaded, awaiting review"
+          icon={<Clock size={20} />} iconColor="var(--tone-warning-fg)" iconBg="var(--tone-warning-bg)" loading={!counts && !countsError} />
+        <StatsCard title="Pending withdrawals" value={counts ? fmt(counts.pendingWithdrawals) : '—'} hint="Requests awaiting action"
+          icon={<Wallet size={20} />} iconColor="var(--tone-danger-fg)" iconBg="var(--tone-danger-bg)" loading={!counts && !countsError} />
       </div>
 
-      {/* Stats grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
-        <StatsCard title="Total Drivers" value={stats?.totalDrivers ?? '—'}
-          icon={<UserCheck size={16} />} iconColor="#4ade80" iconBg="rgba(22,163,74,0.12)"
-          trend={{ value: 12, label: 'this month' }} loading={loading} />
-        <StatsCard title="Total Passengers" value={stats?.totalPassengers ?? '—'}
-          icon={<Users size={16} />} iconColor="#60a5fa" iconBg="rgba(2,132,199,0.12)"
-          trend={{ value: 8, label: 'this month' }} loading={loading} />
-        <StatsCard title="Active Trips" value={stats?.activeTrips ?? '—'}
-          icon={<Car size={16} />} iconColor="#a78bfa" iconBg="rgba(124,58,237,0.12)"
-          loading={loading} />
-        <StatsCard title="Pending Approvals" value={stats?.pendingApprovals ?? '—'}
-          icon={<Clock size={16} />} iconColor="#fbbf24" iconBg="rgba(217,119,6,0.12)"
-          loading={loading} />
-        <StatsCard title="Pending Payouts" value={stats?.pendingWithdrawals ?? '—'}
-          icon={<Wallet size={16} />} iconColor="#f87171" iconBg="rgba(239,68,68,0.12)"
-          loading={loading} />
-        <StatsCard title="Today's Revenue" value={stats ? formatCurrency(stats.todayRevenue) : '—'}
-          icon={<TrendingUp size={16} />} iconColor="#4ade80" iconBg="rgba(22,163,74,0.12)"
-          trend={{ value: 23, label: 'vs yesterday' }} loading={loading} />
+      <div className="grid-main-side">
+        <Panel
+          title="Activity"
+          subtitle={`Orders created per day, last ${rangeLabel}`}
+          actions={
+            <div className="segmented" role="group" aria-label="Date range">
+              {RANGES.map((r) => (
+                <button key={r.days} aria-pressed={range === r.days} onClick={() => setRange(r.days)}>{r.label}</button>
+              ))}
+            </div>
+          }
+        >
+          {activityError ? <ErrorState message={activityError} onRetry={() => loadActivity(range)} /> : activity === null ? (
+            <div className="skeleton" style={{ height: '260px' }} aria-busy="true" />
+          ) : activity.length === 0 ? (
+            <EmptyState icon={<Car size={22} />} title="No orders in this period" description="Rides, deliveries and Gas orders appear here as they are created." />
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={daily} margin={{ top: 4, right: 4, left: -18, bottom: 0 }}>
+                  <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false}
+                    interval={range > 30 ? 13 : range > 7 ? 4 : 0} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
+                  <Tooltip cursor={{ fill: 'var(--surface-alt)' }}
+                    contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '10px', fontSize: '12px' }} />
+                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '12px', color: 'var(--text-secondary)' }} />
+                  {SERVICES.map((s, i) => (
+                    <Bar key={s.key} dataKey={s.key} name={s.label} stackId="a" fill={s.color}
+                      radius={i === SERVICES.length - 1 ? [4, 4, 0, 0] : undefined} maxBarSize={36} />
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+              {capped.length > 0 && (
+                <p style={{ fontSize: '12px', color: 'var(--tone-warning-fg)', marginTop: '8px' }}>
+                  Showing the latest {fmt(READ_CAP)} {capped.map((c) => SERVICES.find((s) => s.key === c)!.label.toLowerCase()).join(' and ')} in this range; earlier days may be undercounted. Use a shorter range.
+                </p>
+              )}
+            </>
+          )}
+        </Panel>
+
+        <Panel title="Outcomes" subtitle={`Orders created in the last ${rangeLabel}`}>
+          {activity === null ? <div className="skeleton" style={{ height: '200px' }} /> : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {SERVICES.map((s) => {
+                const o = result[s.key]
+                const pct = (n: number) => (o.total ? Math.round((n / o.total) * 100) : 0)
+                return (
+                  <div key={s.key}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <Link href={s.href} style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', textDecoration: 'none' }}>{s.label}</Link>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>{fmt(o.total)}</span>
+                    </div>
+                    <div aria-hidden style={{ display: 'flex', height: '8px', borderRadius: '999px', overflow: 'hidden', background: 'var(--surface-alt)' }}>
+                      <div style={{ width: `${pct(o.completed)}%`, background: 'var(--primary)' }} />
+                      <div style={{ width: `${pct(o.open)}%`, background: 'var(--chart-2)' }} />
+                      <div style={{ width: `${pct(o.cancelled)}%`, background: 'var(--danger)' }} />
+                    </div>
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', fontSize: '11.5px', color: 'var(--text-tertiary)', marginTop: '6px' }}>
+                      <span>{fmt(o.completed)} completed</span><span>{fmt(o.open)} in progress</span><span>{fmt(o.cancelled)} cancelled or failed</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </Panel>
       </div>
 
-      {/* Charts row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 320px', gap: '16px' }}>
-
-        {/* Revenue chart */}
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '20px' }}>
-          <div style={{ marginBottom: '16px' }}>
-            <h3 style={{ fontFamily: "'Syne', sans-serif", fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '2px' }}>Weekly Revenue</h3>
-            <p style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Platform fee collected (GHS)</p>
-          </div>
-          <ResponsiveContainer width="100%" height={180}>
-            <AreaChart data={weeklyData}>
-              <defs>
-                <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#16a34a" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="#16a34a" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} width={40} />
-              <Tooltip
-                contentStyle={{ background: 'var(--surface-alt)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px' }}
-                labelStyle={{ color: 'var(--text-secondary)' }}
-              />
-              <Area type="monotone" dataKey="revenue" stroke="#16a34a" strokeWidth={2} fill="url(#revGrad)" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Trips chart */}
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '20px' }}>
-          <div style={{ marginBottom: '16px' }}>
-            <h3 style={{ fontFamily: "'Syne', sans-serif", fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '2px' }}>Daily Trips</h3>
-            <p style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Completed trips per day</p>
-          </div>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={weeklyData} barSize={24}>
-              <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} width={30} />
-              <Tooltip
-                contentStyle={{ background: 'var(--surface-alt)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px' }}
-                cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-              />
-              <Bar dataKey="trips" fill="#0284c7" radius={[4,4,0,0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Service distribution */}
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '20px' }}>
-          <div style={{ marginBottom: '16px' }}>
-            <h3 style={{ fontFamily: "'Syne', sans-serif", fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '2px' }}>Service Split</h3>
-            <p style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>By service type</p>
-          </div>
-          <ResponsiveContainer width="100%" height={140}>
-            <PieChart>
-              <Pie data={serviceData} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={3} dataKey="value">
-                {serviceData.map((entry, i) => (
-                  <Cell key={i} fill={entry.color} />
+      <div className="grid-2">
+        <Panel title="Gas suppliers" subtitle="Onboarding status" actions={<Link href="/gas-suppliers" className="btn btn-secondary">Manage</Link>}>
+          {suppliersError ? <ErrorState message={suppliersError} /> : suppliers === null ? <div className="skeleton" style={{ height: '96px' }} /> :
+            suppliers.length === 0 ? <EmptyState icon={<Factory size={22} />} title="No suppliers yet" description="Suppliers you onboard appear here." /> : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                {suppliers.map((s) => (
+                  <div key={s.key} style={{ flex: '1 1 140px', border: '1px solid var(--border)', borderRadius: 'var(--radius-control)', padding: '12px 14px' }}>
+                    <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>{s.count}</div>
+                    <div style={{ marginTop: '6px' }}><StatusBadge status={s.key} /></div>
+                  </div>
                 ))}
-              </Pie>
-              <Tooltip contentStyle={{ background: 'var(--surface-alt)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px' }} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
-            {serviceData.map(s => (
-              <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: s.color }} />
-                <span style={{ color: 'var(--text-secondary)', flex: 1 }}>{s.name}</span>
-                <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{s.value}%</span>
               </div>
-            ))}
-          </div>
-        </div>
+            )}
+        </Panel>
+
+        <Panel title="Gas orders" subtitle={`Last ${rangeLabel}, by status`} actions={<Link href="/gas-orders" className="btn btn-secondary">View all</Link>}>
+          {activity === null ? <div className="skeleton" style={{ height: '96px' }} /> : (() => {
+            const byStatus = countBy(activity.filter((a) => a.service === 'gas'), (a) => a.status)
+            return byStatus.length === 0 ? <EmptyState icon={<Flame size={22} />} title="No Gas orders in this period" /> : (
+              <table className="data-table">
+                <thead><tr><th>Status</th><th style={{ textAlign: 'right' }}>Orders</th></tr></thead>
+                <tbody>
+                  {byStatus.map((s) => (
+                    <tr key={s.key}><td><StatusBadge status={s.key} /></td><td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--text-primary)' }}>{fmt(s.count)}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            )
+          })()}
+        </Panel>
       </div>
 
-      {/* Tables row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-
-        {/* Recent trips */}
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', overflow: 'hidden' }}>
-          <div style={{ padding: '18px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 style={{ fontFamily: "'Syne', sans-serif", fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>Recent Trips</h3>
-            <a href="/trips" style={{ fontSize: '12px', color: '#4ade80', textDecoration: 'none' }}>View all →</a>
-          </div>
-          {loading ? <div style={{ padding: '16px' }}><TableSkeleton rows={5} cols={3} /></div> : (
-            <div>
-              {recentTrips.length === 0 ? (
-                <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '13px' }}>No recent trips</div>
-              ) : recentTrips.map(trip => (
-                <div key={trip.id} style={{ padding: '12px 20px', borderBottom: '1px solid #0f1923', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--surface-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Car size={14} style={{ color: '#16a34a' }} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {trip.pickupAddress || '—'}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{timeAgo(trip.createdAt)}</div>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                    <StatusBadge status={trip.status} />
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#4ade80' }}>{formatCurrency(trip.estimatedFare)}</span>
-                  </div>
-                </div>
-              ))}
+      <div className="grid-2">
+        <Panel title="Recent rides" padded={false} actions={<Link href="/trips" style={{ fontSize: '13px', fontWeight: 600, color: 'var(--accent-text)' }}>View all</Link>}>
+          {recentTrips === null ? <div style={{ padding: '16px' }}><TableSkeleton rows={4} cols={3} /></div> : recentTrips.length === 0 ? (
+            <EmptyState icon={<Car size={22} />} title="No rides yet" />
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table">
+                <thead><tr><th>Pickup</th><th>Status</th><th style={{ textAlign: 'right' }}>Fare</th><th>Created</th></tr></thead>
+                <tbody>
+                  {recentTrips.map((t) => (
+                    <tr key={t.id}>
+                      <td style={{ maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)', fontWeight: 600 }}>{t.pickupAddress || '—'}</td>
+                      <td><StatusBadge status={t.status} /></td>
+                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{typeof t.estimatedFare === 'number' ? formatCurrency(t.estimatedFare) : '—'}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{timeAgo(t.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
-        </div>
+        </Panel>
 
-        {/* Recent withdrawals */}
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', overflow: 'hidden' }}>
-          <div style={{ padding: '18px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 style={{ fontFamily: "'Syne', sans-serif", fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>Recent Withdrawals</h3>
-            <a href="/withdrawals" style={{ fontSize: '12px', color: '#4ade80', textDecoration: 'none' }}>View all →</a>
-          </div>
-          {loading ? <div style={{ padding: '16px' }}><TableSkeleton rows={5} cols={3} /></div> : (
-            <div>
-              {recentWithdrawals.length === 0 ? (
-                <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '13px' }}>No recent withdrawals</div>
-              ) : recentWithdrawals.map(w => (
-                <div key={w.id} style={{ padding: '12px 20px', borderBottom: '1px solid #0f1923', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--surface-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Wallet size={14} style={{ color: '#f87171' }} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {w.method} · {w.role}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{timeAgo(w.createdAt)}</div>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                    <StatusBadge status={w.status} />
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#f87171' }}>{formatCurrency(w.amount)}</span>
-                  </div>
-                </div>
-              ))}
+        <Panel title="Recent withdrawal requests" padded={false} actions={<Link href="/withdrawals" style={{ fontSize: '13px', fontWeight: 600, color: 'var(--accent-text)' }}>Review</Link>}>
+          {recentWithdrawals === null ? <div style={{ padding: '16px' }}><TableSkeleton rows={4} cols={3} /></div> : recentWithdrawals.length === 0 ? (
+            <EmptyState icon={<Wallet size={22} />} title="No withdrawal requests" />
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table">
+                <thead><tr><th>Method</th><th>Status</th><th style={{ textAlign: 'right' }}>Requested</th><th>Created</th></tr></thead>
+                <tbody>
+                  {recentWithdrawals.map((w) => (
+                    <tr key={w.id}>
+                      <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{w.method || '—'}{w.role ? <span style={{ color: 'var(--text-tertiary)', fontWeight: 500 }}> · {w.role}</span> : null}</td>
+                      <td><StatusBadge status={w.status} /></td>
+                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{typeof w.amount === 'number' ? formatCurrency(w.amount) : '—'}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{timeAgo(w.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
-        </div>
+        </Panel>
       </div>
+
+      <p style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
+        Revenue is not estimated on this page. Recorded platform fees and payouts are on the <Link href="/ledger" style={{ color: 'var(--accent-text)', fontWeight: 600 }}>Ledger</Link>.
+      </p>
     </div>
   )
 }

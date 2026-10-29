@@ -224,7 +224,7 @@ export default function LiveMapPage() {
 
   const filterButtons: { key: DriverFilter; label: string; color: string }[] = [
     { key: 'all', label: `All (${stats.online})`, color: FALLBACK_COLOR },
-    { key: 'available', label: `Available (${stats.available})`, color: '#4ade80' },
+    { key: 'available', label: `Available (${stats.available})`, color: 'var(--accent-text)' },
     { key: 'on_trip', label: `On Trip (${stats.onTrip})`, color: '#f59e0b' },
   ]
 
@@ -413,7 +413,7 @@ export default function LiveMapPage() {
                   width: '8px',
                   height: '8px',
                   borderRadius: '50%',
-                  background: '#4ade80',
+                  background: 'var(--accent-text)',
                   animation: 'livemap-pulse 2s infinite',
                 }}
               />
@@ -460,7 +460,7 @@ export default function LiveMapPage() {
                             trip.status === 'tripStarted'
                               ? 'rgba(22,163,74,0.12)'
                               : 'rgba(251,191,36,0.12)',
-                          color: trip.status === 'tripStarted' ? '#4ade80' : '#fbbf24',
+                          color: trip.status === 'tripStarted' ? 'var(--accent-text)' : '#fbbf24',
                         }}
                       >
                         {TRIP_STATUS_LABEL[trip.status] ?? trip.status}
@@ -532,7 +532,7 @@ export default function LiveMapPage() {
                           height: '8px',
                           borderRadius: '50%',
                           flexShrink: 0,
-                          background: driver.currentTripId ? '#f59e0b' : '#4ade80',
+                          background: driver.currentTripId ? '#f59e0b' : 'var(--accent-text)',
                         }}
                       />
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -627,7 +627,7 @@ export default function LiveMapPage() {
               background: selected.currentTripId
                 ? 'rgba(245,158,11,0.12)'
                 : 'rgba(22,163,74,0.12)',
-              color: selected.currentTripId ? '#f59e0b' : '#4ade80',
+              color: selected.currentTripId ? '#f59e0b' : 'var(--accent-text)',
             }}
           >
             {selected.currentTripId ? 'On Trip' : 'Available'}
