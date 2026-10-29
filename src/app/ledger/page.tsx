@@ -266,7 +266,7 @@ function FlowCard({ label, value, hint, warn }: { label: string; value: string; 
 
 function StatusChip({ status }: { status: string }) {
   const map: Record<string, { bg: string; fg: string; label: string }> = {
-    completed: { bg: 'rgba(22,163,74,0.12)', fg: '#4ade80', label: 'Completed' },
+    completed: { bg: 'rgba(22,163,74,0.12)', fg: 'var(--accent-text)', label: 'Completed' },
     pending:   { bg: 'rgba(251,191,36,0.12)', fg: '#fbbf24', label: 'Pending' },
     failed:    { bg: 'rgba(239,68,68,0.12)',  fg: '#f87171', label: 'Failed' },
   }

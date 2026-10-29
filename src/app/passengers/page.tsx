@@ -162,7 +162,7 @@ export default function PassengersPage() {
                       <td style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '12px' }}>{p.phoneNumber || '—'}</td>
                       <td style={{ fontSize: '12px' }}>{p.email || '—'}</td>
                       <td>
-                        <span style={{ fontWeight: 700, color: '#4ade80', fontSize: '13px' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--accent-text)', fontSize: '13px' }}>
                           {formatCurrency(p.walletBalance || 0)}
                         </span>
                       </td>
@@ -172,7 +172,7 @@ export default function PassengersPage() {
                           disabled={isFrozen('walletAdjustment')}
                           title={isFrozen('walletAdjustment') ? FROZEN_ACTION_MESSAGE : undefined}
                           aria-label={isFrozen('walletAdjustment') ? `Wallet: ${FROZEN_ACTION_MESSAGE}` : undefined}
-                          style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(22,163,74,0.12)', color: '#4ade80', cursor: 'pointer', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px', ...(isFrozen('walletAdjustment') ? frozenButtonStyle : {}) }}>
+                          style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(22,163,74,0.12)', color: 'var(--accent-text)', cursor: 'pointer', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px', ...(isFrozen('walletAdjustment') ? frozenButtonStyle : {}) }}>
                           <Wallet size={11} /> Wallet
                         </button>
                       </td>
@@ -204,7 +204,7 @@ export default function PassengersPage() {
             {/* Current balance */}
             <div style={{ background: 'var(--surface-alt)', borderRadius: '12px', padding: '14px', marginBottom: '16px', textAlign: 'center' }}>
               <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Current Balance</div>
-              <div style={{ fontSize: '28px', fontWeight: 800, color: '#4ade80', fontFamily: "'Syne', sans-serif" }}>
+              <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--accent-text)', fontFamily: "'Syne', sans-serif" }}>
                 {formatCurrency(walletModal.walletBalance || 0)}
               </div>
               <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '4px' }}>{displayName(walletModal)}</div>

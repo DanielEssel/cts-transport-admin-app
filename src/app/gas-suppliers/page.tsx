@@ -61,7 +61,7 @@ export default function GasSuppliersPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
         <StatsCard title="Suppliers" value={rows.length} icon={<Factory size={16} />} iconColor="#fb923c" iconBg="rgba(249,115,22,0.12)" loading={loading} />
         <StatsCard title="Awaiting verification" value={count('pending_verification')} icon={<Factory size={16} />} iconColor="#facc15" iconBg="rgba(234,179,8,0.12)" loading={loading} />
-        <StatsCard title="Approved" value={count('approved')} icon={<Factory size={16} />} iconColor="#4ade80" iconBg="rgba(22,163,74,0.12)" loading={loading} />
+        <StatsCard title="Approved" value={count('approved')} icon={<Factory size={16} />} iconColor="var(--accent-text)" iconBg="rgba(22,163,74,0.12)" loading={loading} />
         <StatsCard title="Taking orders" value={rows.filter((s) => s.ordersEnabled).length} icon={<Factory size={16} />} iconColor="#60a5fa" iconBg="rgba(96,165,250,0.12)" loading={loading} />
       </div>
 

@@ -4,56 +4,99 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── CTSGo design tokens ──────────────────────────────────────────────────
+   One palette for the admin dashboard and the Gas supplier portal (the
+   portal mirrors these values in its tailwind.config.ts).
+   Contrast (WCAG AA, checked): text-primary 15.6:1, text-secondary 8.9:1,
+   text-tertiary 5.2:1 on white (4.8:1 on --bg); white on --primary-dark
+   5.0:1. --primary (#16A34A) is 3.3:1 on white: icons, charts and large
+   accents only, never body text or a white-text button fill. */
 :root {
-  --font-display: "Inter", sans-serif;
-  --font-sans:    "Inter", sans-serif;
-  --font-mono:    "JetBrains Mono", monospace;
+  --font-display: "Inter", system-ui, sans-serif;
+  --font-sans:    "Inter", system-ui, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, monospace;
   /* legacy aliases (kept so existing references don't break) */
-  --font-syne:       "Inter", sans-serif;
-  --font-geist-sans: "Inter", sans-serif;
-  --font-geist-mono: "JetBrains Mono", monospace;
+  --font-syne:       var(--font-display);
+  --font-geist-sans: var(--font-sans);
+  --font-geist-mono: var(--font-mono);
   --radius: 0.75rem;
+  --radius-card: 14px;
+  --radius-control: 10px;
 
-  /* Brand — one confident accent */
-  --primary:      #15a34a;
-  --primary-dark: #128040;
-  --primary-dim:  #e7f7ee;
+  /* Brand */
+  --primary:      #16a34a;   /* accents, icons, charts */
+  --primary-dark: #15803d;   /* filled buttons, links, active nav */
+  --primary-hover:#166534;
+  --primary-dim:  #dcfce7;   /* soft green surfaces */
+  --forest:       #0f3d24;
+  --accent-text:  #15803d;   /* green text on light surfaces */
 
-  /* Light mode — calibrated for contrast (all text ≥ 4.5:1 on surface) */
-  --bg:            #f6f8fa;
+  /* Neutrals (grey-green) */
+  --bg:            #f5f7f6;
   --surface:       #ffffff;
-  --surface-alt:   #f0f3f6;
-  --border:        #dce3ea;
-  --border-light:  #eef2f6;
-  --text-primary:  #0b1620;   /* crisp near-black */
-  --text-secondary:#3d4b5a;   /* readable mid */
-  --text-tertiary: #64748b;   /* readable faint (was #94a3b8, failed contrast) */
-  --sidebar-bg:    #0b1620;
-  --sidebar-text:  #aebccb;
-  --card-shadow:   0 1px 2px rgba(11,22,32,0.04), 0 1px 3px rgba(11,22,32,0.06);
+  --surface-alt:   #eef2ef;
+  --border:        #dde5df;
+  --border-light:  #ebf0ec;
+  --text-primary:  #17211b;
+  --text-secondary:#3f4a43;
+  --text-tertiary: #647067;
+  --sidebar-bg:    #ffffff;
+  --sidebar-text:  #3f4a43;
+  --sidebar-heading:#647067;
+  --sidebar-hover: #eef2ef;
+  --sidebar-active-bg: #15803d;
+  --sidebar-active-text: #ffffff;
+  --card-shadow:   0 1px 2px rgba(23,33,27,0.04), 0 2px 8px rgba(23,33,27,0.04);
+  --overlay:       rgba(15,61,36,0.35);
 
-  --table-header-bg: #f0f3f6;
-  --table-row-hover: #f6f8fa;
-  --skeleton-base:   #e2e8f0;
-  --skeleton-shine:  #eef2f6;
+  --table-header-bg: #f5f7f6;
+  --table-row-hover: #f5f7f6;
+  --skeleton-base:   #e3e9e5;
+  --skeleton-shine:  #eff3f0;
+
+  /* Status tones (badges, notices) */
+  --tone-success-bg: #dcfce7; --tone-success-fg: #166534;
+  --tone-warning-bg: #fef3c7; --tone-warning-fg: #92400e;
+  --tone-danger-bg:  #fee2e2; --tone-danger-fg:  #991b1b;
+  --tone-info-bg:    #dbeafe; --tone-info-fg:    #1e40af;
+  --tone-neutral-bg: #eef2ef; --tone-neutral-fg: #3f4a43;
+  --danger: #dc2626;
+
+  /* Charts: series colours, colour-blind distinguishable */
+  --chart-1: #16a34a; --chart-2: #0284c7; --chart-3: #d97706; --chart-4: #7c3aed;
+  --chart-grid: #e3e9e5;
 }
 
 .dark {
-  --bg:            #0a1014;
-  --surface:       #121b24;
-  --surface-alt:   #1a2530;
-  --border:        #243240;
-  --border-light:  #1a2530;
-  --text-primary:  #f1f5f9;
-  --text-secondary:#aebccb;   /* lightened for dark-mode contrast */
-  --text-tertiary: #7e8ea0;   /* lightened (was #475569, far too dark) */
-  --sidebar-bg:    #0a1014;
-  --sidebar-text:  #aebccb;
+  --primary-dim:  rgba(22,163,74,0.16);
+  --accent-text:  #4ade80;
+  --bg:            #0b1210;
+  --surface:       #121b17;
+  --surface-alt:   #19241f;
+  --border:        #26332c;
+  --border-light:  #1c2822;
+  --text-primary:  #eef3f0;
+  --text-secondary:#b6c3bb;
+  --text-tertiary: #8a988f;
+  --sidebar-bg:    #0e1613;
+  --sidebar-text:  #b6c3bb;
+  --sidebar-heading:#8a988f;
+  --sidebar-hover: #19241f;
+  --sidebar-active-bg: #15803d;
+  --sidebar-active-text: #ffffff;
   --card-shadow:   0 1px 3px rgba(0,0,0,0.4);
-  --table-header-bg: #1a2530;
-  --table-row-hover: #1a2530;
-  --skeleton-base:   #243240;
-  --skeleton-shine:  #1a2530;
+  --overlay:       rgba(0,0,0,0.6);
+  --table-header-bg: #19241f;
+  --table-row-hover: #19241f;
+  --skeleton-base:   #26332c;
+  --skeleton-shine:  #1c2822;
+  --tone-success-bg: rgba(22,163,74,0.18);  --tone-success-fg: #86efac;
+  --tone-warning-bg: rgba(234,179,8,0.16);  --tone-warning-fg: #fcd34d;
+  --tone-danger-bg:  rgba(239,68,68,0.16);  --tone-danger-fg:  #fca5a5;
+  --tone-info-bg:    rgba(59,130,246,0.16); --tone-info-fg:    #93c5fd;
+  --tone-neutral-bg: #26332c;               --tone-neutral-fg: #c5cfc8;
+  --danger: #f87171;
+  --chart-grid: #26332c;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -90,37 +133,76 @@ h1, h2, h3, h4, h5, h6 {
 
 .sidebar-link {
   display: flex; align-items: center; gap: 10px;
-  padding: 10px 12px; border-radius: 10px;
-  color: var(--sidebar-text); font-size: 14px;
+  padding: 9px 12px; border-radius: var(--radius-control);
+  color: var(--sidebar-text); font-size: 13.5px;
   font-weight: 500; cursor: pointer;
-  transition: all 0.15s ease; text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease; text-decoration: none;
 }
-.sidebar-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
-.sidebar-link.active { background: rgba(21,163,74,0.16); color: #4ade80; }
-.sidebar-link.active svg { color: #4ade80; }
+.sidebar-link:hover { background: var(--sidebar-hover); color: var(--text-primary); }
+.sidebar-link.active, .sidebar-link.active:hover { background: var(--sidebar-active-bg); color: var(--sidebar-active-text); font-weight: 600; }
+.sidebar-link:focus-visible, .btn:focus-visible { outline: 2px solid var(--primary-dark); outline-offset: 2px; }
 
-.stat-card {
+.stat-card, .card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 20px;
+  border-radius: var(--radius-card);
   box-shadow: var(--card-shadow);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
-.stat-card:hover {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 1px var(--primary), var(--card-shadow);
+.stat-card { padding: 18px 20px; }
+.card-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 16px 20px; border-bottom: 1px solid var(--border-light);
 }
+.card-title { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.card-subtitle { font-size: 12.5px; color: var(--text-tertiary); margin-top: 2px; }
+
+/* Responsive page grids */
+.grid-kpi { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); }
+@media (max-width: 640px) { .grid-kpi { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; } .grid-kpi .stat-card { flex-direction: column; align-items: flex-start !important; padding: 14px; } }
+.grid-2 { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
+.grid-main-side { display: grid; gap: 16px; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); }
+@media (max-width: 1024px) { .grid-main-side { grid-template-columns: minmax(0, 1fr); } }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 36px; padding: 0 14px; border-radius: var(--radius-control);
+  font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid transparent;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.btn-primary { background: var(--primary-dark); color: #fff; }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-secondary { background: var(--surface); color: var(--text-secondary); border-color: var(--border); }
+.btn-secondary:hover { background: var(--surface-alt); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Segmented filter (date ranges, tabs) */
+.segmented { display: inline-flex; padding: 3px; gap: 2px; background: var(--surface-alt); border: 1px solid var(--border); border-radius: var(--radius-control); }
+.segmented button { border: 0; background: none; padding: 5px 12px; border-radius: 8px; font-size: 12.5px; font-weight: 600; color: var(--text-secondary); cursor: pointer; }
+.segmented button[aria-pressed="true"] { background: var(--surface); color: var(--text-primary); box-shadow: var(--card-shadow); }
+
+/* Fonts named by older pages that the app never loaded: show Inter. */
+[style*="Syne"], [style*="DM Sans"] { font-family: var(--font-display) !important; }
+
+/* Shell: the sidebar column shows from 1024px; below that, the menu button opens it. */
+.shell-sidebar { display: none; }
+.shell-menu-button { display: flex; }
+@media (min-width: 1024px) {
+  .shell-sidebar { display: block; }
+  .shell-menu-button { display: none; }
+}
+@media (max-width: 640px) { .shell-main { padding: 16px !important; } }
 
 .data-table { width: 100%; border-collapse: collapse; }
 .data-table th {
-  text-align: left; padding: 12px 16px; font-size: 11px;
+  text-align: left; padding: 11px 16px; font-size: 11px;
   font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--text-tertiary); border-bottom: 1px solid var(--border);
   background: var(--table-header-bg);
 }
 .data-table td {
-  padding: 14px 16px; border-bottom: 1px solid var(--border);
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
   font-size: 13px; color: var(--text-secondary);
 }
 .data-table tr:last-child td { border-bottom: none; }
@@ -140,4 +222,4 @@ h1, h2, h3, h4, h5, h6 {
   background-size: 800px 104px;
   animation: shimmer 1.2s infinite linear;
   border-radius: 6px;
-}
+}@media (max-width: 640px) { .shell-user-text { display: none; } }

@@ -62,7 +62,7 @@ export default function GasOrdersPage() {
         <StatsCard title="Total Orders" value={orders.length}
           icon={<Flame size={16} />} iconColor="#fb923c" iconBg="rgba(249,115,22,0.12)" />
         <StatsCard title="Delivered" value={orders.filter(o => o.status === 'delivered').length}
-          icon={<Flame size={16} />} iconColor="#4ade80" iconBg="rgba(22,163,74,0.12)" />
+          icon={<Flame size={16} />} iconColor="var(--accent-text)" iconBg="rgba(22,163,74,0.12)" />
         <StatsCard title="Gas Revenue" value={formatCurrency(totalRevenue)}
           icon={<Flame size={16} />} iconColor="#fb923c" iconBg="rgba(249,115,22,0.12)" />
       </div>

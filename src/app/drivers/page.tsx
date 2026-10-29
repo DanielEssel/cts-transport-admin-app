@@ -228,7 +228,7 @@ export default function DriversPage() {
                         {driver.rating ? `⭐ ${driver.rating.toFixed(1)}` : '—'}
                       </td>
                       <td>{driver.completedTrips || driver.totalTrips || 0}</td>
-                      <td style={{ color: '#4ade80', fontWeight: 600 }}>
+                      <td style={{ color: 'var(--accent-text)', fontWeight: 600 }}>
                         {driver.totalEarnings ? formatCurrency(driver.totalEarnings) : '—'}
                       </td>
                       <td style={{ fontSize: '11px' }}>{formatDateShort(driver.createdAt)}</td>
@@ -241,7 +241,7 @@ export default function DriversPage() {
                           </button>
                           {!driver.isApproved && driver.signupStep !== 'suspended' && (
                             <button onClick={() => { setSelectedDriver(driver); setActionType('approve') }}
-                              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(22,163,74,0.15)', color: '#4ade80', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}>
+                              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(22,163,74,0.15)', color: 'var(--accent-text)', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}>
                               Approve
                             </button>
                           )}
@@ -263,7 +263,7 @@ export default function DriversPage() {
                             <button onClick={() => handleUnsuspend(driver)}
                               disabled={isFrozen('driverSuspension')}
                               title={isFrozen('driverSuspension') ? FROZEN_ACTION_MESSAGE : undefined}
-                              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(22,163,74,0.15)', color: '#4ade80', cursor: 'pointer', fontSize: '11px', fontWeight: 700, ...(isFrozen('driverSuspension') ? frozenButtonStyle : {}) }}>
+                              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(22,163,74,0.15)', color: 'var(--accent-text)', cursor: 'pointer', fontSize: '11px', fontWeight: 700, ...(isFrozen('driverSuspension') ? frozenButtonStyle : {}) }}>
                               Unsuspend
                             </button>
                           )}

@@ -34,7 +34,7 @@ export function DriverDetailModal({ driver, onClose, onApprove, onReject, onSusp
   const docEntries = Object.entries(docs)
 
   const statusColor = (status: string) => {
-    if (status === 'approved' || status === 'uploaded') return '#4ade80'
+    if (status === 'approved' || status === 'uploaded') return 'var(--accent-text)'
     if (status === 'rejected') return '#f87171'
     return '#fbbf24'
   }
@@ -288,7 +288,7 @@ export function DriverDetailModal({ driver, onClose, onApprove, onReject, onSusp
                 {[
                   { label: 'Total Trips',    value: driver.completedTrips || driver.totalTrips || 0, color: '#60a5fa' },
                   { label: 'Rating',          value: driver.rating ? `⭐ ${driver.rating.toFixed(1)}` : 'No ratings', color: '#fbbf24' },
-                  { label: 'Total Earnings',  value: driver.totalEarnings ? formatCurrency(driver.totalEarnings) : 'GH₵ 0.00', color: '#4ade80' },
+                  { label: 'Total Earnings',  value: driver.totalEarnings ? formatCurrency(driver.totalEarnings) : 'GH₵ 0.00', color: 'var(--accent-text)' },
                   { label: 'Today Earnings',  value: driver.todayEarnings ? formatCurrency(driver.todayEarnings) : 'GH₵ 0.00', color: '#a78bfa' },
                 ].map(stat => (
                   <div key={stat.label} style={{

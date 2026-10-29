@@ -25,17 +25,9 @@ export function ThemeToggle() {
     <button
       onClick={toggle}
       title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
-      style={{
-        background: 'var(--surface-alt)',
-        border: '1px solid var(--border)',
-        borderRadius: '8px',
-        padding: '7px',
-        cursor: 'pointer',
-        color: 'var(--text-secondary)',
-        display: 'flex',
-        alignItems: 'center',
-        transition: 'all 0.15s'
-      }}
+      aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+      className="btn btn-secondary"
+      style={{ padding: '0 9px' }}
     >
       {dark ? <Sun size={15} /> : <Moon size={15} />}
     </button>

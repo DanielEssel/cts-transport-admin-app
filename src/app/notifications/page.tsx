@@ -68,9 +68,9 @@ export default function NotificationsPage() {
                 outline: target === opt.key ? '1px solid #16a34a' : '1px solid transparent',
                 textAlign: 'left'
               }}>
-                <div style={{ color: target === opt.key ? '#4ade80' : 'var(--text-tertiary)' }}>{opt.icon}</div>
+                <div style={{ color: target === opt.key ? 'var(--accent-text)' : 'var(--text-tertiary)' }}>{opt.icon}</div>
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: target === opt.key ? '#4ade80' : 'var(--text-primary)' }}>{opt.label}</div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: target === opt.key ? 'var(--accent-text)' : 'var(--text-primary)' }}>{opt.label}</div>
                   <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{opt.desc}</div>
                 </div>
                 {target === opt.key && (
@@ -129,9 +129,9 @@ export default function NotificationsPage() {
         {/* Result */}
         {result && (
           <div style={{ background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.2)', borderRadius: '12px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <CheckCircle size={18} style={{ color: '#4ade80' }} />
+            <CheckCircle size={18} style={{ color: 'var(--accent-text)' }} />
             <div style={{ fontSize: '13px', color: 'var(--text-primary)' }}>
-              <strong style={{ color: '#4ade80' }}>{result.sent}</strong> notifications delivered
+              <strong style={{ color: 'var(--accent-text)' }}>{result.sent}</strong> notifications delivered
               {result.failed > 0 && <span style={{ color: '#f87171', marginLeft: '8px' }}>{result.failed} failed</span>}
             </div>
           </div>
