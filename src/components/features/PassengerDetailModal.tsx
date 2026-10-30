@@ -131,7 +131,7 @@ export function PassengerDetailModal({ passenger, onClose }: PassengerDetailModa
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }}>
                   {[
                     { label: 'Wallet Balance', value: `GH₵ ${(passenger.walletBalance || 0).toFixed(2)}`, color: 'var(--accent-text)' },
-                    { label: 'Total Trips',    value: passenger.tripCount ?? '—',                          color: '#60a5fa' },
+                    { label: 'Total Trips',    value: passenger.tripCount ?? '—',                          color: 'var(--tone-info-fg)' },
                   ].map(stat => (
                     <div key={stat.label} style={{
                       background: 'var(--surface-alt)', border: '1px solid var(--border)',

@@ -152,7 +152,7 @@ export default function LoginPage() {
                   outline: "none",
                   transition: "border-color 0.15s",
                 }}
-                onFocus={(e) => (e.target.style.borderColor = "#16a34a")}
+                onFocus={(e) => (e.target.style.borderColor = "var(--primary-dark)")}
                 onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
               />
             </div>
@@ -187,7 +187,7 @@ export default function LoginPage() {
                   outline: "none",
                   transition: "border-color 0.15s",
                 }}
-                onFocus={(e) => (e.target.style.borderColor = "#16a34a")}
+                onFocus={(e) => (e.target.style.borderColor = "var(--primary-dark)")}
                 onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
               />
             </div>
@@ -197,7 +197,7 @@ export default function LoginPage() {
               style={{
                 marginTop: "8px",
                 padding: "13px",
-                background: "linear-gradient(135deg, #16a34a, #15803d)",
+                background: "var(--primary-dark)",
                 color: "#fff",
                 fontWeight: 700,
                 fontSize: "14px",

@@ -35,8 +35,8 @@ export function DriverDetailModal({ driver, onClose, onApprove, onReject, onSusp
 
   const statusColor = (status: string) => {
     if (status === 'approved' || status === 'uploaded') return 'var(--accent-text)'
-    if (status === 'rejected') return '#f87171'
-    return '#fbbf24'
+    if (status === 'rejected') return 'var(--tone-danger-fg)'
+    return 'var(--tone-warning-fg)'
   }
   const statusBg = (status: string) => {
     if (status === 'approved' || status === 'uploaded') return 'rgba(22,163,74,0.12)'
@@ -205,7 +205,7 @@ export function DriverDetailModal({ driver, onClose, onApprove, onReject, onSusp
                               </span>
                               {url && (
                                 <a href={url} target="_blank" rel="noreferrer" style={{
-                                  fontSize: '11px', color: '#60a5fa',
+                                  fontSize: '11px', color: 'var(--tone-info-fg)',
                                   textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '3px'
                                 }}>
                                   Open <ExternalLink size={10} />
@@ -217,13 +217,13 @@ export function DriverDetailModal({ driver, onClose, onApprove, onReject, onSusp
                               const isExpired = expiry < new Date()
                               const isSoon    = !isExpired && (expiry.getTime() - Date.now()) < 30 * 24 * 60 * 60 * 1000
                               return (
-                                <div style={{ marginTop: '5px', fontSize: '10px', fontWeight: 600, color: isExpired ? '#f87171' : isSoon ? '#fbbf24' : '#94a3b8' }}>
+                                <div style={{ marginTop: '5px', fontSize: '10px', fontWeight: 600, color: isExpired ? 'var(--tone-danger-fg)' : isSoon ? 'var(--tone-warning-fg)' : '#94a3b8' }}>
                                   {isExpired ? '⚠️ EXPIRED' : isSoon ? '⚠️ Expires soon'  : '✓ Expires'}: {expiry.toLocaleDateString('en-GH')}
                                 </div>
                               )
                             })()}
                             {value?.rejectionReason && (
-                              <div style={{ marginTop: '5px', fontSize: '10px', color: '#f87171', fontWeight: 600 }}>
+                              <div style={{ marginTop: '5px', fontSize: '10px', color: 'var(--tone-danger-fg)', fontWeight: 600 }}>
                                 ✗ {value.rejectionReason}
                               </div>
                             )}
@@ -286,10 +286,10 @@ export function DriverDetailModal({ driver, onClose, onApprove, onReject, onSusp
             {activeTab === 'stats' && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }}>
                 {[
-                  { label: 'Total Trips',    value: driver.completedTrips || driver.totalTrips || 0, color: '#60a5fa' },
-                  { label: 'Rating',          value: driver.rating ? `⭐ ${driver.rating.toFixed(1)}` : 'No ratings', color: '#fbbf24' },
+                  { label: 'Total Trips',    value: driver.completedTrips || driver.totalTrips || 0, color: 'var(--tone-info-fg)' },
+                  { label: 'Rating',          value: driver.rating ? `⭐ ${driver.rating.toFixed(1)}` : 'No ratings', color: 'var(--tone-warning-fg)' },
                   { label: 'Total Earnings',  value: driver.totalEarnings ? formatCurrency(driver.totalEarnings) : 'GH₵ 0.00', color: 'var(--accent-text)' },
-                  { label: 'Today Earnings',  value: driver.todayEarnings ? formatCurrency(driver.todayEarnings) : 'GH₵ 0.00', color: '#a78bfa' },
+                  { label: 'Today Earnings',  value: driver.todayEarnings ? formatCurrency(driver.todayEarnings) : 'GH₵ 0.00', color: 'var(--tone-violet-fg)' },
                 ].map(stat => (
                   <div key={stat.label} style={{
                     background: 'var(--surface-alt)', border: '1px solid var(--border)',
@@ -321,7 +321,7 @@ export function DriverDetailModal({ driver, onClose, onApprove, onReject, onSusp
               </button>
               <button onClick={() => { onReject(); onClose() }} style={{
                 padding: '10px 20px', borderRadius: '10px', border: 'none',
-                background: 'rgba(239,68,68,0.12)', color: '#f87171',
+                background: 'rgba(239,68,68,0.12)', color: 'var(--tone-danger-fg)',
                 cursor: 'pointer', fontSize: '13px', fontWeight: 700,
                 display: 'flex', alignItems: 'center', gap: '6px'
               }}>
@@ -329,7 +329,7 @@ export function DriverDetailModal({ driver, onClose, onApprove, onReject, onSusp
               </button>
               <button onClick={() => { onApprove(); onClose() }} style={{
                 padding: '10px 20px', borderRadius: '10px', border: 'none',
-                background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                background: 'var(--primary-dark)',
                 color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 700,
                 display: 'flex', alignItems: 'center', gap: '6px',
                 boxShadow: '0 4px 12px rgba(22,163,74,0.3)'
@@ -362,7 +362,7 @@ export function DriverDetailModal({ driver, onClose, onApprove, onReject, onSusp
                 title={isFrozen('driverSuspension') ? FROZEN_ACTION_MESSAGE : undefined}
                 style={{
                 padding: '10px 20px', borderRadius: '10px', border: 'none',
-                background: 'rgba(234,179,8,0.12)', color: '#fbbf24',
+                background: 'rgba(234,179,8,0.12)', color: 'var(--tone-warning-fg)',
                 cursor: 'pointer', fontSize: '13px', fontWeight: 700,
                 ...(isFrozen('driverSuspension') ? frozenButtonStyle : {})
               }}>

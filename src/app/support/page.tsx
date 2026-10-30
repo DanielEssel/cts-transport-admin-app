@@ -84,7 +84,7 @@ export default function SupportPage() {
   }
 
   const priorityColor = (p: string) =>
-    p === 'high' ? '#f87171' : p === 'medium' ? '#fbbf24' : '#94a3b8'
+    p === 'high' ? 'var(--tone-danger-fg)' : p === 'medium' ? 'var(--tone-warning-fg)' : '#94a3b8'
 
   const filters: { key: TicketFilter; label: string }[] = [
     { key: 'all',         label: `All (${tickets.length})` },
@@ -110,7 +110,7 @@ export default function SupportPage() {
           <button key={f.key} onClick={() => setFilter(f.key)} style={{
             padding: '7px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer',
             fontSize: '12px', fontWeight: 600,
-            background: filter === f.key ? '#16a34a' : 'var(--surface-alt)',
+            background: filter === f.key ? 'var(--primary-dark)' : 'var(--surface-alt)',
             color: filter === f.key ? '#fff' : 'var(--text-secondary)',
           }}>{f.label}</button>
         ))}
@@ -160,7 +160,7 @@ export default function SupportPage() {
                         <span style={{
                           fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '6px',
                           background: ticket.userRole === 'driver' ? 'rgba(22,163,74,0.12)' : 'rgba(2,132,199,0.12)',
-                          color: ticket.userRole === 'driver' ? 'var(--accent-text)' : '#60a5fa'
+                          color: ticket.userRole === 'driver' ? 'var(--accent-text)' : 'var(--tone-info-fg)'
                         }}>{ticket.userRole || 'passenger'}</span>
                       </td>
                       <td style={{ fontSize: '12px', textTransform: 'capitalize' }}>{ticket.category || 'General'}</td>
@@ -174,12 +174,12 @@ export default function SupportPage() {
                       <td>
                         <div style={{ display: 'flex', gap: '6px' }}>
                           <button onClick={() => { setSelected(ticket); setReply(ticket.adminReply || '') }}
-                            style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(96,165,250,0.12)', color: '#60a5fa', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}>
+                            style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(96,165,250,0.12)', color: 'var(--tone-info-fg)', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}>
                             Reply
                           </button>
                           {ticket.status === 'open' && (
                             <button onClick={() => handleStatusChange(ticket, 'in_progress')}
-                              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(251,191,36,0.12)', color: '#fbbf24', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}>
+                              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(251,191,36,0.12)', color: 'var(--tone-warning-fg)', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}>
                               Start
                             </button>
                           )}
@@ -247,7 +247,7 @@ export default function SupportPage() {
               }}>Cancel</button>
               <button onClick={handleReply} disabled={replying || !reply.trim()} style={{
                 padding: '10px 20px', borderRadius: '8px', border: 'none',
-                background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                background: 'var(--primary-dark)',
                 color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 700,
                 display: 'flex', alignItems: 'center', gap: '6px',
                 opacity: replying || !reply.trim() ? 0.7 : 1

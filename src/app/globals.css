@@ -60,6 +60,7 @@
   --tone-danger-bg:  #fee2e2; --tone-danger-fg:  #991b1b;
   --tone-info-bg:    #dbeafe; --tone-info-fg:    #1e40af;
   --tone-neutral-bg: #eef2ef; --tone-neutral-fg: #3f4a43;
+  --tone-violet-bg:  #ede9fe; --tone-violet-fg:  #5b21b6;
   --danger: #dc2626;
 
   /* Charts: series colours, colour-blind distinguishable */
@@ -95,6 +96,7 @@
   --tone-danger-bg:  rgba(239,68,68,0.16);  --tone-danger-fg:  #fca5a5;
   --tone-info-bg:    rgba(59,130,246,0.16); --tone-info-fg:    #93c5fd;
   --tone-neutral-bg: #26332c;               --tone-neutral-fg: #c5cfc8;
+  --tone-violet-bg:  rgba(139,92,246,0.18); --tone-violet-fg:  #c4b5fd;
   --danger: #f87171;
   --chart-grid: #26332c;
 }

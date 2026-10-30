@@ -1,12 +1,13 @@
 "use client";
-// Grouped admin navigation (nav.ts). The pending-driver count is the same
-// query as before: unapproved drivers with documents, not suspended.
+// Grouped admin navigation (nav.ts). The pending-driver badge counts the
+// drivers on the Drivers page's "Pending" tab (lib/driver-status.ts).
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { LogOut, X } from "lucide-react";
 import { NAV_GROUPS, isActive } from "./nav";
+import { isPendingDriverApproval } from "@/lib/driver-status";
 
 interface SidebarProps {
   onClose?: () => void;
@@ -24,10 +25,7 @@ export function Sidebar({ onClose }: SidebarProps) {
         const { collection, getDocs, query, where } = await import("firebase/firestore");
         const { db } = await import("@/lib/firebase");
         const snap = await getDocs(query(collection(db, "drivers"), where("isApproved", "==", false)));
-        setPendingDrivers(snap.docs.filter((d) => {
-          const data = d.data();
-          return data.signupStep !== "suspended" && Object.keys(data.documents || {}).length > 0;
-        }).length);
+        setPendingDrivers(snap.docs.filter((d) => isPendingDriverApproval(d.data())).length);
       } catch {}
     };
     load();
@@ -43,7 +41,7 @@ export function Sidebar({ onClose }: SidebarProps) {
   return (
     <aside
       style={{
-        width: "248px", height: "100vh", background: "var(--sidebar-bg)",
+        width: "248px", height: "calc(100vh - var(--banner-h, 0px))", background: "var(--sidebar-bg)",
         borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column",
         flexShrink: 0, overflowY: "auto", overflowX: "hidden", position: "relative",
       }}

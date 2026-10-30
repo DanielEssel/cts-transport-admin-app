@@ -124,7 +124,7 @@ export default function DeliveriesPage() {
                         </div>
                       </td>
                       <td>
-                        <span style={{ fontSize: '11px', padding: '2px 8px', background: 'rgba(124,58,237,0.12)', borderRadius: '6px', color: '#a78bfa' }}>
+                        <span style={{ fontSize: '11px', padding: '2px 8px', background: 'rgba(124,58,237,0.12)', borderRadius: '6px', color: 'var(--tone-violet-fg)' }}>
                           {d.parcelType || '—'} · {d.weightTier || ''}
                         </span>
                       </td>

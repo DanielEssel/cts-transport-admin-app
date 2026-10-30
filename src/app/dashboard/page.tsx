@@ -13,6 +13,7 @@ import { EmptyState, ErrorState, PageHeader, Panel, StatsCard, StatusBadge, Tabl
 import { formatCurrency, timeAgo } from '@/lib/utils'
 import { listSuppliers } from '@/lib/gas-supplier-data'
 import { gasLoadError } from '@/lib/gas-supplier-ops'
+import { isPendingDriverApproval } from '@/lib/driver-status'
 import {
   READ_CAP, RANGES, countBy, dailyActivity, outcomes, rangeStart, toMillis,
   type ActivityRecord, type RangeDays, type Service,
@@ -20,9 +21,10 @@ import {
 import { Car, Clock, Factory, Flame, RefreshCw, Users, UserCheck, Wallet, Radio } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
+/** Each total loads on its own; null where that one query failed. */
 interface Counts {
-  drivers: number; driversOnline: number; passengers: number
-  activeTrips: number; pendingApprovals: number; pendingWithdrawals: number
+  drivers: number | null; driversOnline: number | null; passengers: number | null
+  activeTrips: number | null; pendingApprovals: number | null; pendingWithdrawals: number | null
 }
 interface RecentTrip { id: string; pickupAddress?: string; status: string; estimatedFare?: number; createdAt: unknown }
 interface RecentWithdrawal { id: string; amount: number; method?: string; status: string; role?: string; createdAt: unknown }
@@ -35,6 +37,7 @@ const SERVICES: Array<{ key: Service; collection: string; label: string; color: 
 
 const count = async (q: Parameters<typeof getCountFromServer>[0]) => (await getCountFromServer(q)).data().count
 const fmt = (n: number) => n.toLocaleString('en-GH')
+const show = (n: number | null | undefined) => (n == null ? '—' : fmt(n))
 
 export default function DashboardPage() {
   const [range, setRange] = useState<RangeDays>(7)
@@ -42,6 +45,8 @@ export default function DashboardPage() {
   const [countsError, setCountsError] = useState<string | null>(null)
   const [activity, setActivity] = useState<ActivityRecord[] | null>(null)
   const [capped, setCapped] = useState<Service[]>([])
+  /** Services whose orders could not be read in this range. */
+  const [failedServices, setFailedServices] = useState<Service[]>([])
   const [activityError, setActivityError] = useState<string | null>(null)
   const [suppliers, setSuppliers] = useState<Array<{ key: string; count: number }> | null>(null)
   const [suppliersError, setSuppliersError] = useState<string | null>(null)
@@ -51,44 +56,55 @@ export default function DashboardPage() {
 
   const loadCounts = useCallback(async () => {
     setCountsError(null)
-    try {
-      const [drivers, driversOnline, passengers, activeTrips, pendingApprovals, pendingWithdrawals] = await Promise.all([
-        count(collection(db, 'drivers')),
-        count(query(collection(db, 'drivers'), where('isOnline', '==', true))),
-        count(collection(db, 'users')),
-        count(query(collection(db, 'trips'), where('status', 'in', ['tripAccepted', 'driverArrived', 'tripStarted']))),
-        count(query(collection(db, 'drivers'), where('isApproved', '==', false), where('documentsUploaded', '==', true))),
-        count(query(collection(db, 'withdrawals'), where('status', '==', 'pending'))),
-      ])
-      setCounts({ drivers, driversOnline, passengers, activeTrips, pendingApprovals, pendingWithdrawals })
-    } catch (e: any) {
-      console.error('dashboard counts', e?.code ?? e)
-      setCountsError(`Could not load platform totals: ${e?.code || e?.message || e}`)
+    const results = await Promise.allSettled([
+      count(collection(db, 'drivers')),
+      count(query(collection(db, 'drivers'), where('isOnline', '==', true))),
+      count(collection(db, 'users')),
+      count(query(collection(db, 'trips'), where('status', 'in', ['tripAccepted', 'driverArrived', 'tripStarted']))),
+      // The Drivers page's "Pending" tab definition (lib/driver-status.ts).
+      getDocs(query(collection(db, 'drivers'), where('isApproved', '==', false)))
+        .then((snap) => snap.docs.filter((d) => isPendingDriverApproval(d.data())).length),
+      count(query(collection(db, 'withdrawals'), where('status', '==', 'pending'))),
+    ])
+    const [drivers, driversOnline, passengers, activeTrips, pendingApprovals, pendingWithdrawals] =
+      results.map((r) => (r.status === 'fulfilled' ? r.value : null))
+    const failed = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+    if (failed.length) {
+      const codes = [...new Set(failed.map((f) => f.reason?.code || f.reason?.message || String(f.reason)))]
+      console.error('dashboard counts', codes)
+      setCountsError(`${failed.length} of ${results.length} totals could not be loaded (${codes.join(', ')}). They show "—".`)
     }
+    setCounts({ drivers, driversOnline, passengers, activeTrips, pendingApprovals, pendingWithdrawals })
   }, [])
 
   const loadActivity = useCallback(async (days: number) => {
     setActivity(null); setActivityError(null)
     const t = Date.now(); setNow(t)
     const since = Timestamp.fromMillis(rangeStart(days, t))
-    try {
-      const snaps = await Promise.all(SERVICES.map((s) =>
-        getDocs(query(collection(db, s.collection), where('createdAt', '>=', since), orderBy('createdAt', 'desc'), limit(READ_CAP)))))
-      const records: ActivityRecord[] = []
-      const hitCap: Service[] = []
-      snaps.forEach((snap, i) => {
-        if (snap.size >= READ_CAP) hitCap.push(SERVICES[i].key)
-        for (const d of snap.docs) {
-          const v = d.data()
-          records.push({ service: SERVICES[i].key, status: String(v.status ?? ''), createdAtMs: toMillis(v.createdAt) })
-        }
-      })
-      setActivity(records); setCapped(hitCap)
-    } catch (e: any) {
-      console.error('dashboard activity', e?.code ?? e)
-      setActivity([])
-      setActivityError(`Could not load activity: ${e?.code || e?.message || e}`)
+    const results = await Promise.allSettled(SERVICES.map((s) =>
+      getDocs(query(collection(db, s.collection), where('createdAt', '>=', since), orderBy('createdAt', 'desc'), limit(READ_CAP)))))
+    const records: ActivityRecord[] = []
+    const hitCap: Service[] = []
+    const missing: string[] = []
+    const failedKeys: Service[] = []
+    results.forEach((r, i) => {
+      if (r.status === 'rejected') {
+        missing.push(`${SERVICES[i].label} (${r.reason?.code || r.reason?.message || r.reason})`)
+        failedKeys.push(SERVICES[i].key)
+        return
+      }
+      if (r.value.size >= READ_CAP) hitCap.push(SERVICES[i].key)
+      for (const d of r.value.docs) {
+        const v = d.data()
+        records.push({ service: SERVICES[i].key, status: String(v.status ?? ''), createdAtMs: toMillis(v.createdAt) })
+      }
+    })
+    if (missing.length) {
+      console.error('dashboard activity', missing)
+      // Partial data is shown, but never as if it were complete.
+      setActivityError(`Could not load ${missing.join(', ')}. Those services are missing from the chart and outcomes below.`)
     }
+    setActivity(missing.length === SERVICES.length ? [] : records); setCapped(hitCap); setFailedServices(failedKeys)
   }, [])
 
   const loadRest = useCallback(async () => {
@@ -127,22 +143,22 @@ export default function DashboardPage() {
 
       {countsError && <ErrorState message={countsError} onRetry={loadCounts} />}
       <div className="grid-kpi">
-        <StatsCard title="Drivers" value={counts ? fmt(counts.drivers) : '—'} hint={counts ? `${fmt(counts.driversOnline)} online now` : undefined}
-          icon={<UserCheck size={20} />} loading={!counts && !countsError} />
-        <StatsCard title="Passengers" value={counts ? fmt(counts.passengers) : '—'} hint="Registered accounts"
-          icon={<Users size={20} />} iconColor="var(--tone-info-fg)" iconBg="var(--tone-info-bg)" loading={!counts && !countsError} />
-        <StatsCard title="Active rides" value={counts ? fmt(counts.activeTrips) : '—'} hint="Accepted, arrived or started"
-          icon={<Radio size={20} />} iconColor="var(--tone-info-fg)" iconBg="var(--tone-info-bg)" loading={!counts && !countsError} />
-        <StatsCard title="Driver approvals" value={counts ? fmt(counts.pendingApprovals) : '—'} hint="Documents uploaded, awaiting review"
-          icon={<Clock size={20} />} iconColor="var(--tone-warning-fg)" iconBg="var(--tone-warning-bg)" loading={!counts && !countsError} />
-        <StatsCard title="Pending withdrawals" value={counts ? fmt(counts.pendingWithdrawals) : '—'} hint="Requests awaiting action"
-          icon={<Wallet size={20} />} iconColor="var(--tone-danger-fg)" iconBg="var(--tone-danger-bg)" loading={!counts && !countsError} />
+        <StatsCard title="Drivers" value={show(counts?.drivers)} hint={counts?.driversOnline != null ? `${fmt(counts.driversOnline)} online now` : undefined}
+          icon={<UserCheck size={20} />} loading={!counts} />
+        <StatsCard title="Passengers" value={show(counts?.passengers)} hint="Passenger accounts (users)"
+          icon={<Users size={20} />} iconColor="var(--tone-info-fg)" iconBg="var(--tone-info-bg)" loading={!counts} />
+        <StatsCard title="Active rides" value={show(counts?.activeTrips)} hint="Accepted, arrived or started"
+          icon={<Radio size={20} />} iconColor="var(--tone-info-fg)" iconBg="var(--tone-info-bg)" loading={!counts} />
+        <StatsCard title="Driver approvals" value={show(counts?.pendingApprovals)} hint="As on the Drivers page's Pending tab"
+          icon={<Clock size={20} />} iconColor="var(--tone-warning-fg)" iconBg="var(--tone-warning-bg)" loading={!counts} />
+        <StatsCard title="Pending withdrawals" value={show(counts?.pendingWithdrawals)} hint="Requests not yet processed or paid"
+          icon={<Wallet size={20} />} iconColor="var(--tone-danger-fg)" iconBg="var(--tone-danger-bg)" loading={!counts} />
       </div>
 
       <div className="grid-main-side">
         <Panel
           title="Activity"
-          subtitle={`Orders created per day, last ${rangeLabel}`}
+          subtitle={`Orders created per day, last ${rangeLabel} (Accra time)`}
           actions={
             <div className="segmented" role="group" aria-label="Date range">
               {RANGES.map((r) => (
@@ -151,7 +167,8 @@ export default function DashboardPage() {
             </div>
           }
         >
-          {activityError ? <ErrorState message={activityError} onRetry={() => loadActivity(range)} /> : activity === null ? (
+          {activityError && <div style={{ marginBottom: '12px' }}><ErrorState message={activityError} onRetry={() => loadActivity(range)} /></div>}
+          {activity === null ? (
             <div className="skeleton" style={{ height: '260px' }} aria-busy="true" />
           ) : activity.length === 0 ? (
             <EmptyState icon={<Car size={22} />} title="No orders in this period" description="Rides, deliveries and Gas orders appear here as they are created." />
@@ -174,7 +191,7 @@ export default function DashboardPage() {
               </ResponsiveContainer>
               {capped.length > 0 && (
                 <p style={{ fontSize: '12px', color: 'var(--tone-warning-fg)', marginTop: '8px' }}>
-                  Showing the latest {fmt(READ_CAP)} {capped.map((c) => SERVICES.find((s) => s.key === c)!.label.toLowerCase()).join(' and ')} in this range; earlier days may be undercounted. Use a shorter range.
+                  Showing the latest {fmt(READ_CAP)} {capped.map((c) => SERVICES.find((s) => s.key === c)!.label.toLowerCase()).join(' and ')} in this range; earlier days and the outcome totals may be undercounted. Use a shorter range.
                 </p>
               )}
             </>
@@ -186,6 +203,9 @@ export default function DashboardPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {SERVICES.map((s) => {
                 const o = result[s.key]
+                if (failedServices.includes(s.key)) {
+                  return <div key={s.key} style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}><strong style={{ color: 'var(--text-primary)' }}>{s.label}</strong>: not loaded</div>
+                }
                 const pct = (n: number) => (o.total ? Math.round((n / o.total) * 100) : 0)
                 return (
                   <div key={s.key}>
@@ -224,8 +244,8 @@ export default function DashboardPage() {
             )}
         </Panel>
 
-        <Panel title="Gas orders" subtitle={`Last ${rangeLabel}, by status`} actions={<Link href="/gas-orders" className="btn btn-secondary">View all</Link>}>
-          {activity === null ? <div className="skeleton" style={{ height: '96px' }} /> : (() => {
+        <Panel title="Gas orders" subtitle={`Direct Gas orders (not supplier orders), last ${rangeLabel}, by status`} actions={<Link href="/gas-orders" className="btn btn-secondary">View all</Link>}>
+          {failedServices.includes('gas') ? <ErrorState message="Gas orders could not be loaded for this range." onRetry={() => loadActivity(range)} /> : activity === null ? <div className="skeleton" style={{ height: '96px' }} /> : (() => {
             const byStatus = countBy(activity.filter((a) => a.service === 'gas'), (a) => a.status)
             return byStatus.length === 0 ? <EmptyState icon={<Flame size={22} />} title="No Gas orders in this period" /> : (
               <table className="data-table">
@@ -288,7 +308,7 @@ export default function DashboardPage() {
       </div>
 
       <p style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
-        Revenue is not estimated on this page. Recorded platform fees and payouts are on the <Link href="/ledger" style={{ color: 'var(--accent-text)', fontWeight: 600 }}>Ledger</Link>.
+        Revenue is not estimated on this page: no commission rate is assumed. Fees actually recorded are on the <Link href="/ledger" style={{ color: 'var(--accent-text)', fontWeight: 600 }}>Ledger</Link>; a withdrawal counts as paid only once its status says so.
       </p>
     </div>
   )

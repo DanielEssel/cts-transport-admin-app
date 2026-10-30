@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
+import { isPendingDriverApproval } from '@/lib/driver-status'
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 import { db, functions } from '@/lib/firebase'
@@ -49,7 +50,7 @@ export default function DriversPage() {
 
   useEffect(() => {
     let result = drivers
-    if (filter === 'pending') result = result.filter(d => !d.isApproved && d.signupStep !== 'suspended' && d.signupStep !== 'rejected' && d.signupStep !== 'approved' && (d.signupStep === 'documentsUploaded' || d.signupStep === 'pendingApproval' || d.signupStep === 'documents_submitted' || d.signupStep === 'pending_review'))
+    if (filter === 'pending') result = result.filter(isPendingDriverApproval)
     if (filter === 'approved') result = result.filter(d => d.isApproved)
     if (filter === 'suspended') result = result.filter(d => d.signupStep === 'suspended')
     if (filter === 'rejected')  result = result.filter(d => d.signupStep === 'rejected')
@@ -117,7 +118,7 @@ export default function DriversPage() {
 
   const filterBtns: { key: FilterType; label: string; count: number }[] = [
     { key: 'all', label: 'All', count: drivers.length },
-    { key: 'pending', label: 'Pending', count: drivers.filter(d => !d.isApproved && d.signupStep !== 'suspended').length },
+    { key: 'pending', label: 'Pending', count: drivers.filter(isPendingDriverApproval).length },
     { key: 'approved', label: 'Approved', count: drivers.filter(d => d.isApproved).length },
     { key: 'suspended', label: 'Suspended', count: drivers.filter(d => d.signupStep === 'suspended').length },
     { key: 'rejected',  label: 'Rejected',  count: drivers.filter(d => d.signupStep === 'rejected').length },
@@ -145,13 +146,14 @@ export default function DriversPage() {
       {/* Filters */}
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
         {filterBtns.map(btn => (
-          <button key={btn.key} onClick={() => setFilter(btn.key)} style={{
-            padding: '7px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer',
-            fontSize: '12px', fontWeight: 600,
-            background: filter === btn.key ? '#16a34a' : 'var(--surface-alt)',
+          <button key={btn.key} onClick={() => setFilter(btn.key)} aria-pressed={filter === btn.key} style={{
+            padding: '7px 14px', borderRadius: '999px', cursor: 'pointer',
+            fontSize: '12.5px', fontWeight: 600,
+            border: `1px solid ${filter === btn.key ? 'var(--primary-dark)' : 'var(--border)'}`,
+            background: filter === btn.key ? 'var(--primary-dark)' : 'var(--surface)',
             color: filter === btn.key ? '#fff' : 'var(--text-secondary)',
           }}>
-            {btn.label} <span style={{ opacity: 0.7 }}>({btn.count})</span>
+            {btn.label} <span style={{ fontWeight: 500 }}>({btn.count})</span>
           </button>
         ))}
 
@@ -224,7 +226,7 @@ export default function DriversPage() {
                       <td>
                         <StatusBadge status={driver.isOnline ? 'online' : 'offline'} />
                       </td>
-                      <td style={{ fontWeight: 600, color: '#fbbf24' }}>
+                      <td style={{ fontWeight: 600, color: 'var(--tone-warning-fg)' }}>
                         {driver.rating ? `⭐ ${driver.rating.toFixed(1)}` : '—'}
                       </td>
                       <td>{driver.completedTrips || driver.totalTrips || 0}</td>
@@ -236,7 +238,7 @@ export default function DriversPage() {
                         <div style={{ display: 'flex', gap: '6px' }}>
                           {/* View button — opens DriverDetailModal */}
                           <button onClick={() => setViewDriver(driver)}
-                            style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(99,102,241,0.12)', color: '#818cf8', cursor: 'pointer', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'var(--tone-info-bg)', color: 'var(--tone-info-fg)', cursor: 'pointer', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <Eye size={11} />View
                           </button>
                           {!driver.isApproved && driver.signupStep !== 'suspended' && (
@@ -247,7 +249,7 @@ export default function DriversPage() {
                           )}
                           {!driver.isApproved && driver.signupStep !== 'suspended' && (
                             <button onClick={() => { setSelectedDriver(driver); setActionType('reject') }}
-                              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(239,68,68,0.12)', color: '#f87171', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}>
+                              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(239,68,68,0.12)', color: 'var(--tone-danger-fg)', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}>
                               Reject
                             </button>
                           )}
@@ -255,7 +257,7 @@ export default function DriversPage() {
                             <button onClick={() => { setSelectedDriver(driver); setActionType('suspend') }}
                               disabled={isFrozen('driverSuspension')}
                               title={isFrozen('driverSuspension') ? FROZEN_ACTION_MESSAGE : undefined}
-                              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(234,179,8,0.12)', color: '#fbbf24', cursor: 'pointer', fontSize: '11px', fontWeight: 700, ...(isFrozen('driverSuspension') ? frozenButtonStyle : {}) }}>
+                              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(234,179,8,0.12)', color: 'var(--tone-warning-fg)', cursor: 'pointer', fontSize: '11px', fontWeight: 700, ...(isFrozen('driverSuspension') ? frozenButtonStyle : {}) }}>
                               Suspend
                             </button>
                           )}
@@ -284,7 +286,7 @@ export default function DriversPage() {
         title={`Approve ${selectedDriver?.displayName}?`}
         description="This will verify the driver's account and allow them to accept trips."
         confirmLabel="Approve Driver"
-        confirmColor="#16a34a"
+        confirmColor="var(--primary-dark)"
         onConfirm={handleApprove}
         onCancel={() => { setSelectedDriver(null); setActionType(null) }}
         loading={actionLoading}

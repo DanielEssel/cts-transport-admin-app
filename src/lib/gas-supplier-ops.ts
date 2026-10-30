@@ -539,20 +539,45 @@ export const payoutEvidenceOk = (v: string) => v.trim().length >= 6
 export interface TermsProposal {
   rateBps: number
   termsReference: string
-  settlementHoldHours: number
+  /** The platform default only: a supplier's own rate uses the platform's hold. */
+  settlementHoldHours?: number
+  /** A supplier's own rate; absent: the platform default. */
+  supplierId?: string
 }
 
+/** The form: supplierId '' proposes the platform default. */
+export interface TermsProposalForm { rateBps: string; termsReference: string; settlementHoldHours: string; supplierId?: string }
+
 /** The server's input checks (gas_settlement_ledger.js proposeTerms), so the form says why before it submits. */
-export function termsProposalProblem(p: { rateBps: string; termsReference: string; settlementHoldHours: string }): string | null {
+export function termsProposalProblem(p: TermsProposalForm): string | null {
   if (!/^\d+$/.test(p.rateBps.trim()) || Number(p.rateBps) > 10000) return 'Rate: whole basis points from 0 to 10000 (1000 = 10%).'
   if (p.termsReference.trim().length < 3 || p.termsReference.length > 200) return 'Terms reference: the signed agreement or approval record (3–200 characters).'
+  if (p.supplierId) return null
   const h = Number(p.settlementHoldHours)
   if (p.settlementHoldHours.trim() === '' || !Number.isFinite(h) || h < 0 || h > 720) return 'Settlement hold: 0 to 720 hours.'
   return null
 }
 
-export function parseTermsProposal(p: { rateBps: string; termsReference: string; settlementHoldHours: string }): TermsProposal {
-  return { rateBps: Number(p.rateBps.trim()), termsReference: p.termsReference.trim(), settlementHoldHours: Number(p.settlementHoldHours) }
+export function parseTermsProposal(p: TermsProposalForm): TermsProposal {
+  const base = { rateBps: Number(p.rateBps.trim()), termsReference: p.termsReference.trim() }
+  return p.supplierId ? { ...base, supplierId: p.supplierId } : { ...base, settlementHoldHours: Number(p.settlementHoldHours) }
+}
+
+/**
+ * The current terms documents (gas_commission_terms): `current` is the
+ * platform default, `current_s_{supplierId}` a supplier's own approved rate.
+ */
+export function splitTermsDocs<T extends { id: string }>(docs: T[]): { platform: T | null; suppliers: Record<string, T>; versions: T[] } {
+  const suppliers: Record<string, T> = {}
+  for (const d of docs) if (d.id.startsWith('current_s_')) suppliers[d.id.slice('current_s_'.length)] = d
+  return { platform: docs.find((d) => d.id === 'current') ?? null, suppliers, versions: docs.filter((d) => !d.id.startsWith('current')) }
+}
+
+/** Whether current terms can price orders (the server's termsProblem, for display). */
+export function termsUsable(t: Record<string, any> | null | undefined, { supplier = false } = {}): boolean {
+  return !!t && t.active === true && Number.isInteger(t.rateBps) && typeof t.termsReference === 'string' && !!t.termsReference && !!t.approvedBy
+    && t.commissionBase === 'product_subtotal' && t.handlingFeeCommissionable === false && t.deliveryFeeCommissionable === false
+    && (supplier || (typeof t.settlementHoldHours === 'number' && t.settlementHoldHours >= 0))
 }
 
 /** Whether this admin may approve a version: it is proposed, and someone else proposed it. */

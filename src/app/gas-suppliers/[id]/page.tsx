@@ -18,6 +18,7 @@ import {
 } from '@/lib/gas-supplier-data'
 import { SupplierForm } from '@/components/features/gas-suppliers/SupplierForm'
 import { StationForm } from '@/components/features/gas-suppliers/StationForm'
+import { ServiceTimes } from '@/components/features/gas-suppliers/ServiceTimes'
 import { ProductForm } from '@/components/features/gas-suppliers/ProductForm'
 import { SupplierLogins } from '@/components/features/gas-suppliers/SupplierLogins'
 import { SupplierRiders } from '@/components/features/gas-suppliers/SupplierRiders'
@@ -141,7 +142,7 @@ export default function SupplierDetailPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {readiness.checks.map((c) => (
             <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: c.ok ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-              {c.ok ? <CheckCircle2 size={15} color="#4ade80" /> : <Circle size={15} color="#f87171" />}
+              {c.ok ? <CheckCircle2 size={15} color="var(--accent-text)" /> : <Circle size={15} color="var(--tone-danger-fg)" />}
               {c.label}{c.detail && <span style={{ color: 'var(--text-tertiary)' }}> — {c.detail}</span>}
             </div>
           ))}
@@ -283,6 +284,7 @@ export default function SupplierDetailPage() {
       <SupplierLogins supplierId={supplier.id} />
 
       {/* Linked riders (super-admin callables in gas_supplier_riders.js) */}
+      <ServiceTimes stations={stations.map(({ station }) => ({ id: station.id, name: String(station.name ?? station.id) }))} />
       <SupplierRiders supplierId={supplier.id} />
 
       {/* History */}

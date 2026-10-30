@@ -13,9 +13,9 @@ export const inputStyle: React.CSSProperties = {
 
 export function buttonStyle(kind: 'primary' | 'secondary' | 'danger' | 'warning' = 'secondary', disabled = false): React.CSSProperties {
   const palette = {
-    primary: { background: '#16a34a', color: '#fff', border: 'none' },
-    danger: { background: 'rgba(239,68,68,0.12)', color: '#f87171', border: 'none' },
-    warning: { background: 'rgba(234,179,8,0.12)', color: '#fbbf24', border: 'none' },
+    primary: { background: 'var(--primary-dark)', color: '#fff', border: 'none' },
+    danger: { background: 'rgba(239,68,68,0.12)', color: 'var(--tone-danger-fg)', border: 'none' },
+    warning: { background: 'rgba(234,179,8,0.12)', color: 'var(--tone-warning-fg)', border: 'none' },
     secondary: { background: 'var(--surface-alt)', color: 'var(--text-secondary)', border: '1px solid var(--border)' },
   }[kind]
   return {
@@ -121,9 +121,8 @@ export function CheckboxGroup<T extends string>({ options, checked, onChange, di
 }
 
 export function Notice({ tone = 'info', children }: { tone?: 'info' | 'warning' | 'danger'; children: ReactNode }) {
-  const c = { info: ['rgba(96,165,250,0.10)', '#60a5fa'], warning: ['rgba(234,179,8,0.10)', '#fbbf24'], danger: ['rgba(239,68,68,0.10)', '#f87171'] }[tone]
   return (
-    <div style={{ background: c[0], border: `1px solid ${c[1]}33`, color: 'var(--text-secondary)', borderRadius: '10px', padding: '10px 12px', fontSize: '12px', lineHeight: 1.5 }}>
+    <div role={tone === 'danger' ? 'alert' : undefined} style={{ background: `var(--tone-${tone}-bg)`, border: '1px solid var(--border)', color: `var(--tone-${tone}-fg)`, borderRadius: '10px', padding: '10px 12px', fontSize: '12px', lineHeight: 1.5 }}>
       {children}
     </div>
   )
@@ -156,7 +155,7 @@ export function OrdersBadge({ on }: { on: boolean }) {
   return (
     <span style={{
       padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap', display: 'inline-block',
-      background: on ? '#1e3a5f' : 'var(--border)', color: on ? '#60a5fa' : 'var(--text-secondary)',
+      background: on ? 'var(--tone-info-bg)' : 'var(--tone-neutral-bg)', color: on ? 'var(--tone-info-fg)' : 'var(--tone-neutral-fg)',
     }}>
       {on ? 'Orders on' : 'Orders off'}
     </span>

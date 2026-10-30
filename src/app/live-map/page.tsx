@@ -32,7 +32,7 @@ interface LiveTrip {
 type DriverFilter = 'all' | 'available' | 'on_trip'
 
 const SERVICE_COLORS: Record<string, string> = {
-  okada: '#16a34a',
+  okada: '#15803d', // literal: used as a map-marker fill and with an alpha suffix
   taxi: '#0284c7',
   delivery: '#7c3aed',
   gas: '#d97706',
@@ -321,7 +321,7 @@ export default function LiveMapPage() {
                   width: '32px',
                   height: '32px',
                   borderRadius: '50%',
-                  border: '3px solid #16a34a',
+                  border: '3px solid var(--primary-dark)',
                   borderTopColor: 'transparent',
                   animation: 'livemap-spin 0.8s linear infinite',
                 }}
@@ -460,7 +460,7 @@ export default function LiveMapPage() {
                             trip.status === 'tripStarted'
                               ? 'rgba(22,163,74,0.12)'
                               : 'rgba(251,191,36,0.12)',
-                          color: trip.status === 'tripStarted' ? 'var(--accent-text)' : '#fbbf24',
+                          color: trip.status === 'tripStarted' ? 'var(--accent-text)' : 'var(--tone-warning-fg)',
                         }}
                       >
                         {TRIP_STATUS_LABEL[trip.status] ?? trip.status}

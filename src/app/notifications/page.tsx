@@ -65,7 +65,7 @@ export default function NotificationsPage() {
                 display: 'flex', alignItems: 'center', gap: '12px',
                 padding: '12px 16px', borderRadius: '10px', border: 'none', cursor: 'pointer',
                 background: target === opt.key ? 'rgba(22,163,74,0.12)' : 'var(--surface-alt)',
-                outline: target === opt.key ? '1px solid #16a34a' : '1px solid transparent',
+                outline: target === opt.key ? '1px solid var(--primary-dark)' : '1px solid transparent',
                 textAlign: 'left'
               }}>
                 <div style={{ color: target === opt.key ? 'var(--accent-text)' : 'var(--text-tertiary)' }}>{opt.icon}</div>
@@ -74,7 +74,7 @@ export default function NotificationsPage() {
                   <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{opt.desc}</div>
                 </div>
                 {target === opt.key && (
-                  <div style={{ marginLeft: 'auto', width: '16px', height: '16px', borderRadius: '50%', background: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ marginLeft: 'auto', width: '16px', height: '16px', borderRadius: '50%', background: 'var(--primary-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#fff' }} />
                   </div>
                 )}
@@ -115,7 +115,7 @@ export default function NotificationsPage() {
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '20px' }}>
             <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '12px' }}>Preview</label>
             <div style={{ background: 'var(--surface-alt)', borderRadius: '12px', padding: '14px 16px', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, #16a34a, #15803d)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--primary-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <Bell size={16} style={{ color: '#fff' }} />
               </div>
               <div>
@@ -132,7 +132,7 @@ export default function NotificationsPage() {
             <CheckCircle size={18} style={{ color: 'var(--accent-text)' }} />
             <div style={{ fontSize: '13px', color: 'var(--text-primary)' }}>
               <strong style={{ color: 'var(--accent-text)' }}>{result.sent}</strong> notifications delivered
-              {result.failed > 0 && <span style={{ color: '#f87171', marginLeft: '8px' }}>{result.failed} failed</span>}
+              {result.failed > 0 && <span style={{ color: 'var(--tone-danger-fg)', marginLeft: '8px' }}>{result.failed} failed</span>}
             </div>
           </div>
         )}
@@ -141,7 +141,7 @@ export default function NotificationsPage() {
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
           padding: '14px', borderRadius: '12px', border: 'none',
           cursor: sending ? 'not-allowed' : 'pointer',
-          background: 'linear-gradient(135deg, #16a34a, #15803d)',
+          background: 'var(--primary-dark)',
           color: '#fff', fontWeight: 700, fontSize: '14px',
           boxShadow: '0 4px 16px rgba(22,163,74,0.3)',
           opacity: sending ? 0.8 : 1

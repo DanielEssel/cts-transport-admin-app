@@ -275,7 +275,7 @@ export default function SettingsPage() {
             borderBottom: "1px solid var(--border)",
           }}
         >
-          <div style={{ color: "#16a34a" }}>{icon}</div>
+          <div style={{ color: "var(--primary-dark)" }}>{icon}</div>
           <span
             style={{
               fontFamily: "'Syne', sans-serif",
@@ -321,7 +321,7 @@ export default function SettingsPage() {
               cursor: "pointer",
               whiteSpace: "nowrap",
               background: active
-                ? "linear-gradient(135deg, #16a34a, #15803d)"
+                ? "var(--primary-dark)"
                 : "transparent",
               color: active ? "#fff" : "var(--text-tertiary)",
               fontWeight: 700,
@@ -331,7 +331,7 @@ export default function SettingsPage() {
             }}
           >
             <span
-              style={{ display: "flex", color: active ? "#fff" : "#16a34a" }}
+              style={{ display: "flex", color: active ? "#fff" : "var(--primary-dark)" }}
             >
               {t.icon}
             </span>
@@ -465,7 +465,7 @@ export default function SettingsPage() {
           borderRadius: "12px",
           border: "none",
           cursor: "pointer",
-          background: value ? "#16a34a" : "var(--border)",
+          background: value ? "var(--primary-dark)" : "var(--border)",
           position: "relative",
           transition: "background 0.2s",
           flexShrink: 0,
@@ -579,7 +579,7 @@ export default function SettingsPage() {
             borderRadius: "10px",
             border: "none",
             cursor: saving ? "not-allowed" : "pointer",
-            background: "linear-gradient(135deg, #16a34a, #15803d)",
+            background: "var(--primary-dark)",
             color: "#fff",
             fontWeight: 700,
             fontSize: "14px",
@@ -608,9 +608,9 @@ export default function SettingsPage() {
       >
         <Info
           size={14}
-          style={{ color: "#60a5fa", flexShrink: 0, marginTop: "1px" }}
+          style={{ color: "var(--tone-info-fg)", flexShrink: 0, marginTop: "1px" }}
         />
-        <p style={{ fontSize: "12px", color: "#60a5fa", lineHeight: 1.6 }}>
+        <p style={{ fontSize: "12px", color: "var(--tone-info-fg)", lineHeight: 1.6 }}>
           Changes take effect immediately for new bookings. Existing trips are
           not affected. The driver app reads these settings on each booking
           request.
@@ -1131,7 +1131,7 @@ export default function SettingsPage() {
           borderRadius: "12px",
           border: "none",
           cursor: saving ? "not-allowed" : "pointer",
-          background: "linear-gradient(135deg, #16a34a, #15803d)",
+          background: "var(--primary-dark)",
           color: "#fff",
           fontWeight: 700,
           fontSize: "14px",

@@ -121,7 +121,7 @@ export default function LedgerPage() {
       </div>
 
       {error && (
-        <div style={{ padding: '16px', borderRadius: '12px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', fontSize: '13px' }}>
+        <div style={{ padding: '16px', borderRadius: '12px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--tone-danger-fg)', fontSize: '13px' }}>
           Could not load ledger data. Check your connection and try Refresh.
         </div>
       )}
@@ -134,7 +134,7 @@ export default function LedgerPage() {
         <>
           {/* Total held — hero */}
           <div style={{
-            background: 'linear-gradient(135deg, #16a34a, #15803d)', borderRadius: '18px',
+            background: 'var(--primary-dark)', borderRadius: '18px',
             padding: '24px', color: '#fff',
           }}>
             <div style={{ fontSize: '13px', fontWeight: 600, opacity: 0.85, marginBottom: '6px' }}>
@@ -151,7 +151,7 @@ export default function LedgerPage() {
           {/* Breakdown — who owns the money */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
             <OwnerCard label="Passenger Wallets" value={GHS(totals.passengerHeld)} hint="Topped up, not yet spent" color="#0284c7" />
-            <OwnerCard label="Driver Wallets" value={GHS(totals.driverHeld)} hint="Earned, not yet withdrawn" color="#16a34a" />
+            <OwnerCard label="Driver Wallets" value={GHS(totals.driverHeld)} hint="Earned, not yet withdrawn" color="var(--primary-dark)" />
             <OwnerCard label="Platform Commission" value={GHS(totals.platformEarned)} hint="CTS earnings to date" color="#d97706" />
           </div>
 
@@ -165,7 +165,7 @@ export default function LedgerPage() {
           {pending.length > 0 && (
             <div style={{ background: 'var(--surface)', border: '1px solid rgba(251,191,36,0.4)', borderRadius: '14px', overflow: 'hidden' }}>
               <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#fbbf24' }} />
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--tone-warning-fg)' }} />
                 <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
                   Pending Withdrawals ({pending.length})
                 </span>
@@ -176,7 +176,7 @@ export default function LedgerPage() {
                     <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{w.userName || w.userId}</div>
                     <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{fmtDate(w.createdAt)} · {w.role}</div>
                   </div>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#fbbf24' }}>{GHS(w.amount)}</div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--tone-warning-fg)' }}>{GHS(w.amount)}</div>
                 </div>
               ))}
             </div>
@@ -258,7 +258,7 @@ function FlowCard({ label, value, hint, warn }: { label: string; value: string; 
   return (
     <div style={{ background: 'var(--surface)', border: `1px solid ${warn ? 'rgba(251,191,36,0.4)' : 'var(--border)'}`, borderRadius: '14px', padding: '18px' }}>
       <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>{label}</div>
-      <div style={{ fontSize: '22px', fontWeight: 800, color: warn ? '#fbbf24' : 'var(--text-primary)', fontFamily: "'Syne', sans-serif" }}>{value}</div>
+      <div style={{ fontSize: '22px', fontWeight: 800, color: warn ? 'var(--tone-warning-fg)' : 'var(--text-primary)', fontFamily: "'Syne', sans-serif" }}>{value}</div>
       <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px' }}>{hint}</div>
     </div>
   )
@@ -267,8 +267,8 @@ function FlowCard({ label, value, hint, warn }: { label: string; value: string; 
 function StatusChip({ status }: { status: string }) {
   const map: Record<string, { bg: string; fg: string; label: string }> = {
     completed: { bg: 'rgba(22,163,74,0.12)', fg: 'var(--accent-text)', label: 'Completed' },
-    pending:   { bg: 'rgba(251,191,36,0.12)', fg: '#fbbf24', label: 'Pending' },
-    failed:    { bg: 'rgba(239,68,68,0.12)',  fg: '#f87171', label: 'Failed' },
+    pending:   { bg: 'rgba(251,191,36,0.12)', fg: 'var(--tone-warning-fg)', label: 'Pending' },
+    failed:    { bg: 'rgba(239,68,68,0.12)',  fg: 'var(--tone-danger-fg)', label: 'Failed' },
   }
   const s = map[status] || { bg: 'var(--surface-alt)', fg: 'var(--text-tertiary)', label: status }
   return (

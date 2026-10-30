@@ -116,11 +116,11 @@ export default function WithdrawalsPage() {
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
         <StatsCard title="Pending Requests" value={pending.length}
-          icon={<Wallet size={16} />} iconColor="#fbbf24" iconBg="rgba(217,119,6,0.12)" />
+          icon={<Wallet size={16} />} iconColor="var(--tone-warning-fg)" iconBg="rgba(217,119,6,0.12)" />
         <StatsCard title="Pending Amount" value={formatCurrency(totalPending)}
-          icon={<CreditCard size={16} />} iconColor="#f87171" iconBg="rgba(239,68,68,0.12)" />
+          icon={<CreditCard size={16} />} iconColor="var(--tone-danger-fg)" iconBg="rgba(239,68,68,0.12)" />
         <StatsCard title="Total Paid Out" value={formatCurrency(totalPaid)}
-          icon={<CheckCircle size={16} />} iconColor="#4ade80" iconBg="rgba(22,163,74,0.12)" />
+          icon={<CheckCircle size={16} />} iconColor="var(--accent-text)" iconBg="rgba(22,163,74,0.12)" />
       </div>
 
       {/* Filters & Search */}
@@ -129,7 +129,7 @@ export default function WithdrawalsPage() {
           <button key={btn.key} onClick={() => setFilter(btn.key)} style={{
             padding: '7px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer',
             fontSize: '12px', fontWeight: 600,
-            background: filter === btn.key ? '#16a34a' : 'var(--surface-alt)',
+            background: filter === btn.key ? 'var(--primary-dark)' : 'var(--surface-alt)',
             color: filter === btn.key ? '#fff' : 'var(--text-secondary)',
           }}>
             {btn.label}
@@ -174,10 +174,10 @@ export default function WithdrawalsPage() {
                         <span style={{
                           padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700,
                           background: w.role === 'driver' ? 'rgba(22,163,74,0.12)' : 'rgba(2,132,199,0.12)',
-                          color: w.role === 'driver' ? '#4ade80' : '#60a5fa'
+                          color: w.role === 'driver' ? 'var(--accent-text)' : 'var(--tone-info-fg)'
                         }}>{w.role}</span>
                       </td>
-                      <td style={{ fontWeight: 700, color: '#f87171', fontSize: '14px' }}>
+                      <td style={{ fontWeight: 700, color: 'var(--tone-danger-fg)', fontSize: '14px' }}>
                         {formatCurrency(w.amount)}
                       </td>
                       <td style={{ fontSize: '12px', fontWeight: 600 }}>{w.method}</td>
@@ -208,7 +208,7 @@ export default function WithdrawalsPage() {
                           )}
                           {canResolvePayout(w) && isSuper && (
                             <button onClick={() => { setSelected(w); setActionType('resolve') }}
-                              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(217,119,6,0.15)', color: '#fbbf24', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}>
+                              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(217,119,6,0.15)', color: 'var(--tone-warning-fg)', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}>
                               Confirm result
                             </button>
                           )}
@@ -243,7 +243,7 @@ export default function WithdrawalsPage() {
                 <button key={o} onClick={() => setResolveOutcome(o)} style={{
                   flex: 1, padding: '8px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 700,
                   border: '1px solid var(--border)',
-                  background: resolveOutcome === o ? (o === 'paid' ? '#16a34a' : '#ef4444') : 'var(--surface-alt)',
+                  background: resolveOutcome === o ? (o === 'paid' ? 'var(--primary-dark)' : '#ef4444') : 'var(--surface-alt)',
                   color: resolveOutcome === o ? '#fff' : 'var(--text-secondary)',
                 }}>
                   {o === 'paid' ? 'Bridge paid it' : 'Bridge did not pay'}
@@ -267,7 +267,7 @@ export default function WithdrawalsPage() {
                 disabled={actionLoading || evidence.trim().length < MIN_EVIDENCE_LENGTH}
                 style={{
                   padding: '9px 18px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: '#fff',
-                  background: resolveOutcome === 'failed' ? '#ef4444' : '#16a34a',
+                  background: resolveOutcome === 'failed' ? '#ef4444' : 'var(--primary-dark)',
                   opacity: actionLoading || evidence.trim().length < MIN_EVIDENCE_LENGTH ? 0.5 : 1,
                 }}>
                 {actionLoading ? 'Working…' : 'Record result'}

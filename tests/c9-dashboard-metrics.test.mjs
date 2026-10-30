@@ -3,8 +3,9 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 const m = await import('../src/lib/dashboard-metrics.ts')
-const NOW = new Date(2026, 9, 29, 15, 0).getTime()
-const at = (d, h = 10) => new Date(2026, 9, d, h).getTime()
+// Accra time is UTC; the results must not depend on the machine's zone.
+const NOW = Date.UTC(2026, 9, 29, 15, 0)
+const at = (d, h = 10) => Date.UTC(2026, 9, d, h)
 
 test('C9-01 one row per day, oldest first, zeros where nothing happened', () => {
   const rows = m.dailyActivity([
@@ -36,5 +37,15 @@ test('C9-03 counting and timestamps', () => {
   assert.equal(m.toMillis({ toMillis: () => 5 }), 5)
   assert.equal(m.toMillis({ seconds: 2 }), 2000)
   assert.equal(m.toMillis('nope'), null)
-  assert.equal(m.rangeStart(1, NOW), new Date(2026, 9, 29).getTime())
+  assert.equal(m.rangeStart(1, NOW), Date.UTC(2026, 9, 29))
+})
+
+test('C9-04 days are Accra days, and records from the future are not counted', () => {
+  // 23:30 UTC on the 28th is still the 28th in Accra, whatever the viewer's zone.
+  const rows = m.dailyActivity([
+    { service: 'rides', status: 'completed', createdAtMs: Date.UTC(2026, 9, 28, 23, 30) },
+    { service: 'rides', status: 'completed', createdAtMs: Date.UTC(2026, 9, 29, 0, 0) },
+    { service: 'gas', status: 'pending', createdAtMs: NOW + 60 * 60 * 1000 },
+  ], 2, NOW)
+  assert.deepEqual(rows.map((r) => [r.key, r.rides, r.gas]), [['2026-10-28', 1, 0], ['2026-10-29', 1, 0]])
 })

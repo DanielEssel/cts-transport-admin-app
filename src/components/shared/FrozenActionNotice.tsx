@@ -13,7 +13,7 @@ export function FrozenActionNotice({ actions }: { actions: string }) {
         color: 'var(--text-primary)', fontSize: '13px',
       }}
     >
-      <Lock size={14} style={{ color: '#fbbf24', flexShrink: 0 }} />
+      <Lock size={14} style={{ color: 'var(--tone-warning-fg)', flexShrink: 0 }} />
       <span><strong>{actions}:</strong> {FROZEN_ACTION_MESSAGE}</span>
     </div>
   )

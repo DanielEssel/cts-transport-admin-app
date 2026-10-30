@@ -2,6 +2,9 @@
 // (no Firebase), so the tests run it directly. Nothing here estimates or
 // fills in: a day with no records shows 0, and a range larger than the
 // read cap is reported as capped rather than extrapolated.
+//
+// Days are Accra business days (Africa/Accra, UTC+0 all year, as the
+// backend's daily jobs use), whatever the viewer's own time zone.
 
 export const RANGES = [
   { days: 7, label: '7 days' },
@@ -18,28 +21,25 @@ export interface ActivityRecord { service: Service; status: string; createdAtMs:
 
 const DAY = 24 * 60 * 60 * 1000
 
-/** Midnight (local) of the first day in a range ending today. */
+export const BUSINESS_TIME_ZONE = 'Africa/Accra'
+
+/** Accra midnight (= UTC midnight) of the first day in a range ending today. */
 export function rangeStart(days: number, now: number): number {
-  const d = new Date(now)
-  d.setHours(0, 0, 0, 0)
-  return d.getTime() - (days - 1) * DAY
+  return Math.floor(now / DAY) * DAY - (days - 1) * DAY
 }
 
-const dayKey = (ms: number) => {
-  const d = new Date(ms)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+const dayKey = (ms: number) => new Date(ms).toISOString().slice(0, 10)
 
 /** One row per day in the range, oldest first, with each service's count. */
 export function dailyActivity(records: ActivityRecord[], days: number, now: number) {
   const start = rangeStart(days, now)
   const rows = Array.from({ length: days }, (_, i) => {
     const ms = start + i * DAY
-    return { key: dayKey(ms), label: new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }), rides: 0, deliveries: 0, gas: 0 }
+    return { key: dayKey(ms), label: new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: BUSINESS_TIME_ZONE }), rides: 0, deliveries: 0, gas: 0 }
   })
   const index = new Map(rows.map((r, i) => [r.key, i]))
   for (const r of records) {
-    if (r.createdAtMs == null || r.createdAtMs < start) continue
+    if (r.createdAtMs == null || r.createdAtMs < start || r.createdAtMs > now) continue
     const i = index.get(dayKey(r.createdAtMs))
     if (i !== undefined) rows[i][r.service]++
   }
