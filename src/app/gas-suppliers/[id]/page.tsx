@@ -18,6 +18,7 @@ import {
 } from '@/lib/gas-supplier-data'
 import { SupplierForm } from '@/components/features/gas-suppliers/SupplierForm'
 import { StationForm } from '@/components/features/gas-suppliers/StationForm'
+import { ServiceTimes } from '@/components/features/gas-suppliers/ServiceTimes'
 import { ProductForm } from '@/components/features/gas-suppliers/ProductForm'
 import { SupplierLogins } from '@/components/features/gas-suppliers/SupplierLogins'
 import { SupplierRiders } from '@/components/features/gas-suppliers/SupplierRiders'
@@ -283,6 +284,7 @@ export default function SupplierDetailPage() {
       <SupplierLogins supplierId={supplier.id} />
 
       {/* Linked riders (super-admin callables in gas_supplier_riders.js) */}
+      <ServiceTimes stations={stations.map(({ station }) => ({ id: station.id, name: String(station.name ?? station.id) }))} />
       <SupplierRiders supplierId={supplier.id} />
 
       {/* History */}

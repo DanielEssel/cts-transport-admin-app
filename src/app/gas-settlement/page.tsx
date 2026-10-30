@@ -18,10 +18,10 @@ import { RefreshCw } from 'lucide-react'
 import { db, functions } from '@/lib/firebase'
 import { useAuth } from '@/lib/auth-context'
 import { TableSkeleton } from '@/components/shared'
-import { Card, Field, Modal, Notice, Select, TextArea, TextInput, buttonStyle } from '@/components/features/gas-suppliers/ui'
+import { Card, Field, Modal, Notice, Select, TextArea, TextInput, buttonStyle, inputStyle } from '@/components/features/gas-suppliers/ui'
 import {
   PAYOUT_OUTCOME_LABELS, SETTLEMENT_STAGE_LABELS, canApproveTerms, checkStatement, debtBlocked, debtChoices, debtEvidenceRequired, debtLiveStage, debtResolutionLabel, deliveryModeLabel, formatBps,
-  formatPesewas, gasLoadError, isClosedBusinessDate, orderModeReconciles, orderReconciles, parseTermsProposal, payoutEvidenceOk, payoutStatusLabel,
+  formatPesewas, gasLoadError, isClosedBusinessDate, orderModeReconciles, orderReconciles, parseTermsProposal, payoutEvidenceOk, payoutStatusLabel, splitTermsDocs, termsUsable,
   partyReconciles, riderPaymentSummary, settlementRefusal, settlementStage, statementPayoutAction, summarizeLedger, termsProposalProblem, type DebtChoice,
 } from '@/lib/gas-supplier-ops'
 
@@ -31,7 +31,7 @@ interface Statement {
   payoutMethod?: string; withheldPesewas?: unknown; payablePesewas?: unknown
   payout?: { outcome?: string; transactionId?: string; maskedNumber?: string; accountName?: string; network?: string; attempt?: number; resolutionEvidence?: string } | null
 }
-interface TermsVersion { id: string; version?: number; status?: string; rateBps?: number; termsReference?: string; settlementHoldHours?: number; proposedBy?: string; proposedByEmail?: string; approvedBy?: string; approvedByEmail?: string; rejectReason?: string }
+interface TermsVersion { id: string; version?: number; status?: string; supplierId?: string; rateBps?: number; termsReference?: string; settlementHoldHours?: number; proposedBy?: string; proposedByEmail?: string; approvedBy?: string; approvedByEmail?: string; rejectReason?: string }
 
 const TERMS_STATUS_LABELS: Record<string, string> = { proposed: 'Proposed · awaiting a second super admin', approved: 'Approved · current', superseded: 'Superseded', rejected: 'Rejected' }
 
@@ -53,7 +53,9 @@ export default function GasSettlementPage() {
   const { admin } = useAuth()
   const [entries, setEntries] = useState<Entry[] | null>(null)
   const [versions, setVersions] = useState<TermsVersion[]>([])
-  const [proposal, setProposal] = useState({ rateBps: '', termsReference: '', settlementHoldHours: '' })
+  const [proposal, setProposal] = useState({ rateBps: '', termsReference: '', settlementHoldHours: '', supplierId: '' })
+  const [supplierTerms, setSupplierTerms] = useState<Record<string, Record<string, any>>>({})
+  const [supplierNames, setSupplierNames] = useState<Record<string, string>>({})
   const [rejecting, setRejecting] = useState<string | null>(null)
   const [statements, setStatements] = useState<Statement[] | null>(null)
   const [terms, setTerms] = useState<Record<string, any> | null | undefined>(undefined)
@@ -78,18 +80,21 @@ export default function GasSettlementPage() {
   const load = useCallback(async () => {
     setError(null)
     try {
-      const [e, s, t] = await Promise.all([
+      const [e, s, t, sup] = await Promise.all([
         getDocs(query(collection(db, 'gas_settlement_ledger'), orderBy('businessDate', 'desc'), limit(300))),
         getDocs(query(collection(db, 'gas_settlement_statements'), orderBy('businessDate', 'desc'), limit(100))),
         getDocs(collection(db, 'gas_commission_terms')),
+        getDocs(collection(db, 'gas_suppliers')),
       ])
+      setSupplierNames(Object.fromEntries(sup.docs.map((d) => [d.id, String(d.data().tradingName || d.data().legalName || d.id)])))
       const list = e.docs.map((d) => ({ id: d.id, ...d.data() }) as Entry)
       setEntries(list)
       setStatements(s.docs.map((d) => ({ id: d.id, ...d.data() }) as Statement))
-      const current = t.docs.find((d) => d.id === 'current')
-      setTerms(current ? current.data() : null)
-      setVersions(t.docs.filter((d) => d.id !== 'current').map((d) => ({ id: d.id, ...d.data() }) as TermsVersion)
-        .sort((a, b) => (b.version ?? 0) - (a.version ?? 0)))
+      // `current`: the platform default; `current_s_{supplierId}`: a supplier's own approved rate.
+      const split = splitTermsDocs(t.docs.map((d) => ({ id: d.id, ...d.data() }) as TermsVersion & Record<string, any>))
+      setTerms(split.platform)
+      setSupplierTerms(split.suppliers)
+      setVersions(split.versions.sort((a, b) => String(a.supplierId ?? '').localeCompare(String(b.supplierId ?? '')) || (b.version ?? 0) - (a.version ?? 0)))
       // Each order's snapshot total and delivery mode, to check its posted split and delivery party.
       const ids = [...new Set(list.map((x) => x.orderId))]
       const info: Record<string, OrderInfo> = {}
@@ -214,8 +219,8 @@ export default function GasSettlementPage() {
     setBusy(true)
     try {
       const r: any = (await httpsCallable(functions, 'adminProposeGasCommissionTerms')(parseTermsProposal(proposal))).data
-      toast.success(`Version ${r.version} proposed. A different super admin must approve it before it applies.`)
-      setProposal({ rateBps: '', termsReference: '', settlementHoldHours: '' }); await load()
+      toast.success(`${r.termsId} proposed. A different super admin must approve it before it applies.`)
+      setProposal({ rateBps: '', termsReference: '', settlementHoldHours: '', supplierId: '' }); await load()
     } catch (e) { toast.error(callError(e)) } finally { setBusy(false) }
   }
   async function decide(termsId: string, decision: 'approve' | 'reject') {
@@ -289,8 +294,7 @@ export default function GasSettlementPage() {
     } catch (e) { toast.error(callError(e)) } finally { setBusy(false) }
   }
 
-  const termsOk = terms && terms.active === true && Number.isInteger(terms.rateBps) && typeof terms.termsReference === 'string' && terms.termsReference && terms.approvedBy
-    && terms.commissionBase === 'product_subtotal' && terms.handlingFeeCommissionable === false && terms.deliveryFeeCommissionable === false
+  const termsOk = termsUsable(terms)
   const isSuper = admin?.role === 'super_admin'
   const debtFormOk = !!deciding && debtReason.trim().length >= 3 && (!debtEvidenceRequired(deciding.choice) || payoutEvidenceOk(debtEvidence))
 
@@ -313,29 +317,50 @@ export default function GasSettlementPage() {
       <Card title="Commission terms">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
           {terms === undefined ? 'Loading…' : !terms ? (
-            <Notice tone="warning">No commission terms are current. Supplier orders cannot be quoted, created or paid until a version is proposed and approved by a second super admin.</Notice>
+            <Notice tone="warning">No platform commission terms are current. No supplier order can be quoted, created or paid (missing terms are never treated as 0%) until a version is proposed and approved by a second super admin.</Notice>
           ) : (
             <div>
-              <strong>{termsOk ? 'Current and usable' : 'Current but not usable'}</strong> · version {String(terms.version ?? '—')} · {formatBps(terms.rateBps)} of the product subtotal ·
+              <strong>Platform default: {termsOk ? 'current and usable' : 'current but not usable'}</strong> · version {String(terms.version ?? '—')} · {formatBps(terms.rateBps)} of the product subtotal ·
               handling and delivery fees not commissionable · reference {String(terms.termsReference ?? '—')} · hold {String(terms.settlementHoldHours ?? '—')} h ·
               approved by {String(terms.approvedByEmail ?? terms.approvedBy ?? '—')}
             </div>
           )}
           <div style={{ color: 'var(--text-tertiary)' }}>
             Commission is deducted from the supplier&apos;s product proceeds at settlement. It is never added to the customer&apos;s price and never taken from the driver&apos;s delivery fee.
-            Each order keeps the version that was current when it was created.
+            Each order keeps the version that was current when it was created. A supplier with its own approved rate is charged that rate;
+            every other supplier the platform default.
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="data-table">
+              <thead><tr><th>Supplier</th><th>Rate applied to new orders</th><th>Version</th><th>Reference</th></tr></thead>
+              <tbody>
+                {Object.entries(supplierNames).map(([id, name]) => {
+                  const own = supplierTerms[id]
+                  const ownOk = termsUsable(own, { supplier: true })
+                  return (
+                    <tr key={id}>
+                      <td>{name}</td>
+                      <td>{!termsOk ? 'None: no usable platform terms' : own ? (ownOk ? `${formatBps(own.rateBps)} (own rate)` : 'None: its own rate is not usable') : `${formatBps(terms?.rateBps)} (platform default)`}</td>
+                      <td>{own ? String(own.termsId ?? '—') : terms ? String(terms.termsId ?? '—') : '—'}</td>
+                      <td>{String((own ?? terms)?.termsReference ?? '—')}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
           {versions.length > 0 && (
             <div style={{ overflowX: 'auto' }}>
               <table className="data-table">
-                <thead><tr><th>Version</th><th>Rate</th><th>Reference</th><th>Hold</th><th>Status</th><th>Proposed by</th><th>Decided by</th><th /></tr></thead>
+                <thead><tr><th>Version</th><th>Applies to</th><th>Rate</th><th>Reference</th><th>Hold</th><th>Status</th><th>Proposed by</th><th>Decided by</th><th /></tr></thead>
                 <tbody>
                   {versions.map((v) => (
                     <tr key={v.id}>
                       <td>{v.id}</td>
+                      <td>{v.supplierId ? supplierNames[v.supplierId] ?? v.supplierId : 'Platform default'}</td>
                       <td>{formatBps(v.rateBps)}</td>
                       <td>{v.termsReference ?? '—'}</td>
-                      <td>{v.settlementHoldHours ?? '—'} h</td>
+                      <td>{v.supplierId ? 'platform' : `${v.settlementHoldHours ?? '—'} h`}</td>
                       <td>{TERMS_STATUS_LABELS[v.status ?? ''] ?? v.status}{v.rejectReason ? ` (${v.rejectReason})` : ''}</td>
                       <td>{v.proposedByEmail ?? v.proposedBy ?? '—'}</td>
                       <td>{v.approvedByEmail ?? v.approvedBy ?? '—'}</td>
@@ -357,15 +382,24 @@ export default function GasSettlementPage() {
           )}
           {isSuper && (
             <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-              <Field label="Rate (basis points)" hint="Agreed with the supplier. 1000 = 10%; 0 is allowed.">
+              <Field label="Applies to" hint="The platform default, or one supplier's own agreed rate.">
+                <select value={proposal.supplierId} onChange={(e) => setProposal({ ...proposal, supplierId: e.target.value })}
+                  style={{ ...inputStyle, cursor: 'pointer' }}>
+                  <option value="">Platform default</option>
+                  {Object.entries(supplierNames).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+                </select>
+              </Field>
+              <Field label="Rate (basis points)" hint="1000 = 10% (the proposed CTSGo standard, not an agreement with any supplier); 0 is allowed.">
                 <TextInput value={proposal.rateBps} onChange={(v) => setProposal({ ...proposal, rateBps: v })} placeholder="e.g. 1000" />
               </Field>
               <Field label="Terms reference" hint="The signed agreement or approval record.">
                 <TextInput value={proposal.termsReference} onChange={(v) => setProposal({ ...proposal, termsReference: v })} />
               </Field>
-              <Field label="Settlement hold (hours)" hint="After delivery, before an entitlement is eligible.">
-                <TextInput value={proposal.settlementHoldHours} onChange={(v) => setProposal({ ...proposal, settlementHoldHours: v })} />
-              </Field>
+              {!proposal.supplierId && (
+                <Field label="Settlement hold (hours)" hint="After delivery, before an entitlement is eligible.">
+                  <TextInput value={proposal.settlementHoldHours} onChange={(v) => setProposal({ ...proposal, settlementHoldHours: v })} />
+                </Field>
+              )}
               <button style={buttonStyle('secondary', busy || !!proposalProblem)} disabled={busy || !!proposalProblem} title={proposalProblem ?? undefined} onClick={propose}>Propose version</button>
             </div>
           )}
