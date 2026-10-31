@@ -39,3 +39,29 @@ test('C11-03 every Maps failure has a message, and none contains a key', () => {
     assert.doesNotMatch(g.MAPS_FAILURE_MESSAGE[r], /AIza/)
   }
 })
+
+test('C11-04 the key fingerprint is a short hash, never the key', async () => {
+  const key = 'AIzaTEST-not-a-real-key-0000000000000000'
+  const fp = await g.keyFingerprint(key)
+  assert.match(fp, /^[0-9a-f]{8}$/)
+  assert.ok(!key.includes(fp))
+  const { createHash } = await import('node:crypto')
+  assert.equal(fp, createHash('sha256').update(key).digest('hex').slice(0, 8), 'matches sha256sum | cut -c1-8')
+  assert.equal(g.MAPS_KEY_SOURCE, 'NEXT_PUBLIC_MAPS_API_KEY')
+})
+
+test('C11-05 vehicle marker images follow the Passenger App; unknown types get none', async () => {
+  const { existsSync } = await import('node:fs')
+  const want = { okada: 'motorbike', Gas: 'motorbike', delivery: 'motorbike', taxi: 'taxi', aboboya: 'tricycle', pragya: 'tricycle', mini_truck: 'minitruck' }
+  for (const [type, marker] of Object.entries(want)) {
+    assert.equal(m.vehicleMarker(type), marker, type)
+    assert.ok(existsSync(new URL(`../public/markers/${marker}.png`, import.meta.url)), marker)
+  }
+  for (const bad of [undefined, null, '', 'boat', 3]) assert.equal(m.vehicleMarker(bad), null, String(bad))
+})
+
+test('C11-06 the name tag is the driver name, trimmed to 18 characters', () => {
+  assert.equal(m.markerName('  Kwame   Mensah '), 'Kwame Mensah')
+  const long = m.markerName('Nana Akosua Boatemaa Owusu')
+  assert.ok(long.length <= 18 && long.endsWith('…'), long)
+})

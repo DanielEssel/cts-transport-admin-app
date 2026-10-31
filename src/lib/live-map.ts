@@ -48,3 +48,29 @@ export function freshnessLabel(f: Freshness): string {
   const m = Math.round(f.ageMs / 60000)
   return m < 60 ? `Last known ${m} min ago` : `Last known ${Math.round(m / 60)} h ago`
 }
+
+// Vehicle marker images, the same ones the Passenger App draws (copied from
+// its assets/markers/2.0x into public/markers), keyed as its MarkerService
+// keys them. An unknown service type gets no image rather than a wrong vehicle.
+export type VehicleMarker = 'motorbike' | 'taxi' | 'tricycle' | 'minitruck'
+
+export function vehicleMarker(serviceType: unknown): VehicleMarker | null {
+  switch (typeof serviceType === 'string' ? serviceType.toLowerCase().trim() : '') {
+    case 'okada': case 'motorbike': case 'motorcycle': case 'delivery': case 'gas':
+      return 'motorbike'
+    case 'taxi':
+      return 'taxi'
+    case 'aboboya': case 'aboboyaa': case 'tricycle': case 'pragya': case 'pragyia': case 'pragia':
+      return 'tricycle'
+    case 'minitruck': case 'mini_truck': case 'mini truck':
+      return 'minitruck'
+    default:
+      return null
+  }
+}
+
+/** The driver's name as a short map tag: whitespace collapsed, at most 18 characters. */
+export function markerName(name: string): string {
+  const s = name.replace(/\s+/g, ' ').trim()
+  return s.length > 18 ? `${s.slice(0, 17).trimEnd()}…` : s
+}
