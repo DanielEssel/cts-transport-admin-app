@@ -1,7 +1,9 @@
 'use client'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { collection, onSnapshot, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import { MAPS_FAILURE_MESSAGE, MapsLoadError, loadGoogleMaps, onMapsAuthFailure, type MapsFailure } from '@/lib/google-maps'
+import { freshnessLabel, locationFreshness, toLatLng } from '@/lib/live-map'
 
 interface LiveDriver {
   uid: string
@@ -11,9 +13,13 @@ interface LiveDriver {
   isOnline: boolean
   isAvailable: boolean
   currentTripId?: string
-  location?: { latitude: number; longitude: number }
+  fullName?: string
+  location?: unknown
   lastSeen?: unknown
+  lastLocationUpdate?: unknown
 }
+
+const driverName = (d: LiveDriver) => d.displayName || d.fullName || 'Driver'
 
 interface LiveTrip {
   id: string
@@ -62,49 +68,53 @@ export default function LiveMapPage() {
 
   const [drivers, setDrivers] = useState<LiveDriver[]>([])
   const [activeTrips, setActiveTrips] = useState<LiveTrip[]>([])
-  const [selected, setSelected] = useState<LiveDriver | null>(null)
+  const [selectedUid, setSelectedUid] = useState<string | null>(null)
   const [filter, setFilter] = useState<DriverFilter>('all')
   const [mapLoaded, setMapLoaded] = useState(false)
-
-  const initMap = useCallback(() => {
-    if (!mapRef.current || mapObj.current) return
-    mapObj.current = new google.maps.Map(mapRef.current, {
-      center: { lat: 5.6037, lng: -0.187 },
-      zoom: 13,
-      styles: mapStyle,
-      disableDefaultUI: false,
-      zoomControl: true,
-      mapTypeControl: false,
-      streetViewControl: false,
-    })
-    setMapLoaded(true)
+  const [mapError, setMapError] = useState<MapsFailure | null>(null)
+  const [loadAttempt, setLoadAttempt] = useState(0)
+  const [dataError, setDataError] = useState<string | null>(null)
+  const [driversLoaded, setDriversLoaded] = useState(false)
+  // Re-evaluated every 30 s so "live" turns into "last known" without new data.
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const t = window.setInterval(() => setNow(Date.now()), 30000)
+    return () => window.clearInterval(t)
   }, [])
 
-  // Load Google Maps — guarded against double-injection (StrictMode re-mounts,
-  // client-side navigation back to this page).
+  // Load Google Maps through the shared loader, then create the map once the
+  // container exists. Every failure becomes an error state (never a spinner).
   useEffect(() => {
-    if (window.google?.maps) {
-      initMap()
-      return
-    }
+    let cancelled = false
+    setMapError(null)
+    const offAuth = onMapsAuthFailure(() => { if (!cancelled) setMapError('auth_failed') })
+    loadGoogleMaps()
+      .then(maps => {
+        if (cancelled || !mapRef.current || mapObj.current) return
+        mapObj.current = new maps.Map(mapRef.current, {
+          center: { lat: 5.6037, lng: -0.187 },
+          zoom: 13,
+          styles: document.documentElement.classList.contains('dark') ? mapStyleDark : mapStyle,
+          zoomControl: true,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: true,
+        })
+        setMapLoaded(true)
+      })
+      .catch(e => { if (!cancelled) setMapError(e instanceof MapsLoadError ? e.reason : 'load_failed') })
+    return () => { cancelled = true; offAuth() }
+  }, [loadAttempt])
 
-    const existing = document.querySelector<HTMLScriptElement>(
-      'script[data-google-maps="true"]'
-    )
-    if (existing) {
-      existing.addEventListener('load', initMap, { once: true })
-      return
-    }
-
-    const key = process.env.NEXT_PUBLIC_MAPS_API_KEY ?? ''
-    const script = document.createElement('script')
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`
-    script.async = true
-    script.defer = true
-    script.dataset.googleMaps = 'true'
-    script.addEventListener('load', initMap, { once: true })
-    document.head.appendChild(script)
-  }, [initMap])
+  // Follow the admin's light/dark theme.
+  useEffect(() => {
+    if (!mapLoaded) return
+    const html = document.documentElement
+    const apply = () => mapObj.current?.setOptions({ styles: html.classList.contains('dark') ? mapStyleDark : mapStyle })
+    const obs = new MutationObserver(apply)
+    obs.observe(html, { attributes: true, attributeFilter: ['class'] })
+    return () => obs.disconnect()
+  }, [mapLoaded])
 
   // Drop every marker when the page unmounts, so navigating away doesn't leak
   // map objects still bound to a destroyed map instance.
@@ -124,6 +134,11 @@ export default function LiveMapPage() {
       setDrivers(
         snap.docs.map(d => ({ uid: d.id, ...d.data() })) as LiveDriver[]
       )
+      setDriversLoaded(true)
+      setDataError(null)
+    }, e => {
+      setDriversLoaded(true)
+      setDataError(`Could not load driver locations (${e.code || e.message}).`)
     })
   }, [])
 
@@ -137,7 +152,7 @@ export default function LiveMapPage() {
       setActiveTrips(
         snap.docs.map(d => ({ id: d.id, ...d.data() })) as LiveTrip[]
       )
-    })
+    }, e => setDataError(`Could not load active trips (${e.code || e.message}).`))
   }, [])
 
   // Derived from the live driver list — the map, the list and the counts can
@@ -161,63 +176,58 @@ export default function LiveMapPage() {
     [drivers, filter]
   )
 
-  // Sync markers with the visible driver list
+  const selected = useMemo(() => drivers.find(d => d.uid === selectedUid) ?? null, [drivers, selectedUid])
+  const unplaced = useMemo(() => visibleDrivers.filter(d => !toLatLng(d.location)).length, [visibleDrivers])
+
+  // Sync markers with the visible drivers: one marker per driver, placed only
+  // at a valid position, its colour and freshness updated in place.
   useEffect(() => {
     if (!mapLoaded || !mapObj.current) return
-
-    const currentUids = new Set(visibleDrivers.map(d => d.uid))
+    const map = mapObj.current
+    const placed = new Map(visibleDrivers.flatMap(d => {
+      const pos = toLatLng(d.location)
+      return pos ? [[d.uid, { d, pos }] as const] : []
+    }))
     Object.keys(markers.current).forEach(uid => {
-      if (!currentUids.has(uid)) {
+      if (!placed.has(uid)) {
         markers.current[uid].setMap(null)
         delete markers.current[uid]
       }
     })
-
-    visibleDrivers.forEach(driver => {
-      if (!driver.location) return
-      const pos = {
-        lat: driver.location.latitude,
-        lng: driver.location.longitude,
+    placed.forEach(({ d, pos }, uid) => {
+      const fresh = locationFreshness(d, now)
+      const live = fresh.state === 'live'
+      const icon: google.maps.Symbol = {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 10,
+        fillColor: d.currentTripId ? '#f59e0b' : serviceColor(d.serviceType),
+        // A last-known position is drawn faded, so it is never read as live.
+        fillOpacity: live ? 1 : 0.35,
+        strokeColor: live ? '#fff' : '#374151',
+        strokeWeight: 2,
       }
-
-      const existing = markers.current[driver.uid]
+      const title = `${driverName(d)} · ${freshnessLabel(fresh)}`
+      const existing = markers.current[uid]
       if (existing) {
         existing.setPosition(pos)
+        existing.setIcon(icon)
+        existing.setTitle(title)
         return
       }
-
-      const onTrip = !!driver.currentTripId
       const marker = new google.maps.Marker({
-        position: pos,
-        map: mapObj.current!,
-        title: driver.displayName,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 10,
-          fillColor: onTrip ? '#f59e0b' : serviceColor(driver.serviceType),
-          fillOpacity: 1,
-          strokeColor: '#fff',
-          strokeWeight: 2,
-        },
-        label: {
-          text: serviceInitial(driver.serviceType),
-          color: '#fff',
-          fontSize: '10px',
-          fontWeight: 'bold',
-        },
+        position: pos, map, title, icon,
+        label: { text: serviceInitial(d.serviceType), color: '#fff', fontSize: '10px', fontWeight: 'bold' },
       })
-      marker.addListener('click', () => setSelected(driver))
-      markers.current[driver.uid] = marker
+      marker.addListener('click', () => setSelectedUid(uid))
+      markers.current[uid] = marker
     })
-  }, [visibleDrivers, mapLoaded])
+  }, [visibleDrivers, mapLoaded, now])
 
   const focusDriver = (driver: LiveDriver) => {
-    setSelected(driver)
-    if (driver.location && mapObj.current) {
-      mapObj.current.panTo({
-        lat: driver.location.latitude,
-        lng: driver.location.longitude,
-      })
+    setSelectedUid(driver.uid)
+    const pos = toLatLng(driver.location)
+    if (pos && mapObj.current) {
+      mapObj.current.panTo(pos)
       mapObj.current.setZoom(15)
     }
   }
@@ -230,11 +240,14 @@ export default function LiveMapPage() {
 
   return (
     <div
+      className="livemap-page"
       style={{
         display: 'flex',
         flexDirection: 'column',
         gap: '16px',
-        height: 'calc(100vh - 108px)',
+        // The shell's top bar (64px) and page padding (48px), and the emulator strip when shown.
+        height: 'calc(100vh - 112px - var(--banner-h, 0px))',
+        minHeight: '520px',
       }}
     >
       {/* Header + filters */}
@@ -251,7 +264,7 @@ export default function LiveMapPage() {
             Live Map
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>
-            Real-time driver locations and active trips
+            Online drivers at their last reported position (live if reported in the last 2 minutes) and active trips
           </p>
         </div>
 
@@ -282,28 +295,48 @@ export default function LiveMapPage() {
         </div>
       </div>
 
-      {/* Main content */}
-      <div
-        style={{
-          flex: 1,
-          display: 'grid',
-          gridTemplateColumns: '1fr 300px',
-          gap: '16px',
-          minHeight: 0,
-        }}
-      >
+      {dataError && (
+        <div role="alert" style={{ background: 'var(--tone-danger-bg)', color: 'var(--tone-danger-fg)', borderRadius: '10px', padding: '10px 14px', fontSize: '13px' }}>
+          {dataError}
+        </div>
+      )}
+
+      {/* Main content: map beside the lists from 1024px, stacked below */}
+      <div className="livemap-grid">
         {/* Map */}
         <div
+          className="livemap-map"
           style={{
             position: 'relative',
             borderRadius: '16px',
             overflow: 'hidden',
             border: '1px solid var(--border)',
+            background: 'var(--surface-alt)',
           }}
         >
-          <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
+          <div ref={mapRef} data-testid="live-map-canvas" style={{ position: 'absolute', inset: 0 }} />
 
-          {!mapLoaded && (
+          {mapError && (
+            <div
+              role="alert"
+              data-testid="live-map-error"
+              style={{
+                position: 'absolute', inset: 0, zIndex: 2, background: 'var(--surface)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px',
+              }}
+            >
+              <div style={{ maxWidth: '420px', textAlign: 'center' }}>
+                <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px' }}>The map could not be shown</p>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '14px' }}>{MAPS_FAILURE_MESSAGE[mapError]}</p>
+                <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '14px' }}>Driver and trip lists on this page still update.</p>
+                {mapError !== 'missing_key' && mapError !== 'auth_failed' && (
+                  <button className="btn btn-secondary" onClick={() => setLoadAttempt(a => a + 1)}>Retry</button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {!mapLoaded && !mapError && (
             <div
               style={{
                 position: 'absolute',
@@ -326,13 +359,14 @@ export default function LiveMapPage() {
                   animation: 'livemap-spin 0.8s linear infinite',
                 }}
               />
-              <p style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>Loading map...</p>
+              <p role="status" style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>Loading map…</p>
             </div>
           )}
 
           {/* Legend */}
           <div
             style={{
+              zIndex: 1,
               position: 'absolute',
               bottom: '16px',
               left: '16px',
@@ -381,11 +415,20 @@ export default function LiveMapPage() {
               />
               <span style={{ color: 'var(--text-secondary)' }}>On Trip</span>
             </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', fontWeight: 600 }}>
+              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'rgba(148,163,184,0.35)', border: '2px solid #374151' }} />
+              <span style={{ color: 'var(--text-secondary)' }}>Last known (not live)</span>
+            </div>
+            {unplaced > 0 && (
+              <div data-testid="live-map-unplaced" style={{ fontSize: '11px', color: 'var(--text-tertiary)', borderTop: '1px solid var(--border)', paddingTop: '6px' }}>
+                {unplaced} online {unplaced === 1 ? 'driver has' : 'drivers have'} no valid position
+              </div>
+            )}
           </div>
         </div>
 
         {/* Side panel */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'auto' }}>
+        <div className="livemap-side" style={{ display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'auto' }}>
           {/* Active trips */}
           <div
             style={{
@@ -509,7 +552,7 @@ export default function LiveMapPage() {
                     color: 'var(--text-tertiary)',
                   }}
                 >
-                  No drivers online
+                  {!driversLoaded ? 'Loading drivers…' : drivers.length === 0 ? 'No drivers online' : 'No drivers match this filter'}
                 </div>
               ) : (
                 visibleDrivers.map(driver => (
@@ -544,7 +587,7 @@ export default function LiveMapPage() {
                             marginBottom: '2px',
                           }}
                         >
-                          {driver.displayName}
+                          {driverName(driver)}
                         </div>
                         <div
                           style={{
@@ -559,6 +602,10 @@ export default function LiveMapPage() {
                           </span>
                           <span>·</span>
                           <span>{driver.currentTripId ? 'On trip' : 'Available'}</span>
+                          <span>·</span>
+                          <span style={{ color: !toLatLng(driver.location) ? 'var(--tone-danger-fg)' : locationFreshness(driver, now).state === 'live' ? 'var(--accent-text)' : 'var(--tone-warning-fg)' }}>
+                            {!toLatLng(driver.location) ? 'No position' : freshnessLabel(locationFreshness(driver, now))}
+                          </span>
                         </div>
                       </div>
                       <div
@@ -600,7 +647,7 @@ export default function LiveMapPage() {
             alignItems: 'center',
             gap: '16px',
             boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-            minWidth: '320px',
+            width: 'min(420px, calc(100vw - 32px))',
           }}
         >
           <div style={{ flex: 1 }}>
@@ -612,10 +659,12 @@ export default function LiveMapPage() {
                 marginBottom: '2px',
               }}
             >
-              {selected.displayName}
+              {driverName(selected)}
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
-              {selected.phone} · {selected.serviceType || 'unknown'}
+              {[selected.phone, selected.serviceType || 'unknown'].filter(Boolean).join(' · ')}
+              <br />
+              {toLatLng(selected.location) ? freshnessLabel(locationFreshness(selected, now)) : 'No valid position reported'}
             </div>
           </div>
           <div
@@ -633,7 +682,8 @@ export default function LiveMapPage() {
             {selected.currentTripId ? 'On Trip' : 'Available'}
           </div>
           <button
-            onClick={() => setSelected(null)}
+            onClick={() => setSelectedUid(null)}
+            aria-label="Close driver details"
             style={{
               background: 'none',
               border: 'none',
@@ -650,6 +700,13 @@ export default function LiveMapPage() {
 
       {/* Keyframes kept out of the flex containers so they never count as layout children */}
       <style>{`
+        .livemap-grid { flex: 1; min-height: 0; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) 300px; }
+        .livemap-map { min-height: 320px; }
+        @media (max-width: 1023px) {
+          .livemap-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(360px, 60vh) auto; }
+          .livemap-side { overflow: visible !important; }
+          .livemap-page { height: auto !important; }
+        }
         @keyframes livemap-spin { to { transform: rotate(360deg); } }
         @keyframes livemap-pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.4 } }
       `}</style>
@@ -665,4 +722,15 @@ const mapStyle = [
   { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
   { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#e8f5e9' }] },
   { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#b3d9f2' }] },
+]
+// Dark theme: the same structure on the admin's dark surfaces.
+const mapStyleDark = [
+  { elementType: 'geometry', stylers: [{ color: '#19241f' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#b6c3bb' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#0b1210' }] },
+  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#1c2822' }] },
+  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#1f3a2b' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#26332c' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#2f4237' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0e2a3a' }] },
 ]
