@@ -19,6 +19,7 @@ import {
 import { SupplierForm } from '@/components/features/gas-suppliers/SupplierForm'
 import { StationForm } from '@/components/features/gas-suppliers/StationForm'
 import { ServiceTimes } from '@/components/features/gas-suppliers/ServiceTimes'
+import { DispatchStatus } from '@/components/features/gas-suppliers/DispatchStatus'
 import { ProductForm } from '@/components/features/gas-suppliers/ProductForm'
 import { SupplierLogins } from '@/components/features/gas-suppliers/SupplierLogins'
 import { SupplierRiders } from '@/components/features/gas-suppliers/SupplierRiders'
@@ -147,11 +148,8 @@ export default function SupplierDetailPage() {
             </div>
           ))}
         </div>
-        <Notice>
-          Gas dispatch does not use suppliers yet: orders are still priced from Settings → Gas and offered to CTSGo
-          drivers. This switch records that the supplier is cleared for orders; it starts routing orders only once
-          supplier dispatch is built and released.
-        </Notice>
+        {/* Live status from the backend, the switches and this supplier's configuration. */}
+        <DispatchStatus supplierId={supplier.id} ordersEnabled={supplier.ordersEnabled === true} readiness={readiness} />
       </Card>
 
       {/* Details */}
