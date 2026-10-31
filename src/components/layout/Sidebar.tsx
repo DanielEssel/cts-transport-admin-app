@@ -48,14 +48,15 @@ export function Sidebar({ onClose }: SidebarProps) {
     >
       <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "18px 18px 16px", borderBottom: "1px solid var(--border-light)" }}>
         <div style={{
-          width: "36px", height: "36px", borderRadius: "10px", background: "#ffffff", border: "1px solid var(--border)",
+          width: "52px", height: "40px", borderRadius: "10px", background: "#ffffff", border: "1px solid var(--border)",
           display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden",
         }}>
-          <img src="/logo.png" alt="" style={{ width: "28px", height: "28px", objectFit: "contain" }} />
+          {/* Official CTS Africa logo; the white plate keeps it legible in dark mode. */}
+          <img src="/brand/cts-africa-logo.png" alt="CTS Africa" style={{ width: "48px", height: "37px", objectFit: "contain" }} />
         </div>
         <div style={{ minWidth: 0, lineHeight: 1.2 }}>
-          <div style={{ fontSize: "15px", fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.01em" }}>CTSGo</div>
-          <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--accent-text)", letterSpacing: "0.06em", textTransform: "uppercase" }}>Admin</div>
+          <div style={{ fontSize: "15px", fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.01em" }}>CTS Africa</div>
+          <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--accent-text)", letterSpacing: "0.06em", textTransform: "uppercase" }}>CTSGo Admin</div>
         </div>
         {onClose && (
           <button onClick={onClose} aria-label="Close navigation" className="btn btn-secondary" style={{ marginLeft: "auto", padding: "0 8px", minHeight: "32px" }}>
