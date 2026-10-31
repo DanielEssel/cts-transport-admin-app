@@ -64,8 +64,8 @@ export default function LoginPage() {
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              width: "56px",
-              height: "56px",
+              width: "132px",
+              height: "104px",
               borderRadius: "16px",
               background: "#ffffff",
               marginBottom: "16px",
@@ -74,11 +74,11 @@ export default function LoginPage() {
             }}
           >
             <img
-              src="/logo.png"
-              alt="Company Logo"
+              src="/brand/cts-africa-logo.png"
+              alt="CTS Africa"
               style={{
-                width: "42px",
-                height: "42px",
+                width: "124px",
+                height: "96px",
                 objectFit: "contain",
               }}
             />
@@ -94,7 +94,7 @@ export default function LoginPage() {
               marginBottom: "6px",
             }}
           >
-            CTSGo Admin
+            CTS Africa Admin
           </h1>
 
           <p
@@ -103,7 +103,7 @@ export default function LoginPage() {
               fontSize: "14px",
             }}
           >
-            Secure administrative access
+            Administration for the CTSGo platform
           </p>
         </div>
 
@@ -221,7 +221,7 @@ export default function LoginPage() {
             color: "var(--text-tertiary)",
           }}
         >
-          CTSGo Admin Panel v1.0 · Restricted Access
+          © {new Date().getFullYear()} CTS Africa · Restricted access
         </p>
       </div>
     </div>

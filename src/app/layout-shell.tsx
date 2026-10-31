@@ -37,7 +37,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           animation: 'spin 0.8s linear infinite', margin: '0 auto 14px'
         }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        <p style={{ color: 'var(--text-tertiary)', fontSize: '14px' }}>Loading CTSGo Admin…</p>
+        <p style={{ color: 'var(--text-tertiary)', fontSize: '14px' }}>Loading CTS Africa Admin…</p>
       </div>
     </div>
   )

@@ -5,8 +5,8 @@ import { Toaster } from 'sonner'
 import { EmulatorBanner } from '@/components/shared/EmulatorBanner'
 
 export const metadata: Metadata = {
-  title: 'CTSGo Admin',
-  description: 'CTSTransport Platform Administration Dashboard',
+  title: 'CTS Africa Admin',
+  description: 'CTS Africa administration for the CTSGo platform',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
