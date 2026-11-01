@@ -150,13 +150,16 @@ test('C8-35 a refused allocation read is reported as a rules problem, never as "
   assert.match(o.allocationReadError({ code: 'unavailable' }), /^Could not load order allocations: unavailable$/)
 })
 
-test('C8-36 payout actions follow the server: send, record a confirmed result, credit a driver; never for commission or nothing to pay', () => {
+test('C8-36 payout actions follow the server: supplier statements go to the wallet (no Mobile Money from a statement), credit a driver; never for commission or nothing to pay', () => {
   const sup = (o) => ({ party: 'supplier', status: 'prepared', netPesewas: 27000, payoutStatus: 'not_started', ...o })
-  assert.equal(o.statementPayoutAction(sup()), 'send_mobile_money')
-  assert.equal(o.statementPayoutAction(sup({ payoutStatus: 'failed' })), 'send_mobile_money')
-  assert.equal(o.statementPayoutAction(sup({ payoutStatus: 'payout_in_progress', payout: { outcome: 'sent' } })), 'record_result')
-  assert.equal(o.statementPayoutAction(sup({ payoutStatus: 'payout_in_progress', payout: { outcome: 'unknown' } })), 'record_result')
-  assert.equal(o.statementPayoutAction(sup({ payoutStatus: 'payout_in_progress', payout: { outcome: 'sending' } })), null, 'still sending: wait')
+  // The statement Mobile Money payout was removed: a supplier statement is credited to the wallet by the supplier's withdrawal.
+  assert.equal(o.statementPayoutAction(sup()), null)
+  assert.equal(o.statementPayoutAction(sup({ payoutStatus: 'failed' })), null)
+  // One left in progress by the removed payout: review only, never sent again from the dashboard.
+  for (const outcome of ['sent', 'unknown', 'sending']) assert.equal(o.statementPayoutAction(sup({ payoutStatus: 'payout_in_progress', payout: { outcome } })), 'review_old_supplier_payout')
+  assert.match(o.payoutStatusLabel('paid', 'supplier', 'supplier_wallet'), /Credited to supplier wallet/)
+  assert.match(o.payoutStatusLabel('not_started', 'supplier'), /credited to the wallet at the next withdrawal/)
+  assert.match(o.payoutStatusLabel('payout_in_progress', 'supplier'), /needs review/)
   assert.equal(o.statementPayoutAction(sup({ payoutStatus: 'paid' })), null)
   assert.equal(o.statementPayoutAction(sup({ status: 'prepared_no_payout', netPesewas: 0 })), null)
   assert.equal(o.statementPayoutAction(sup({ netPesewas: 1.5 })), null)

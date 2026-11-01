@@ -69,7 +69,7 @@ export default function GasOverviewPage() {
   const names = Object.fromEntries((sup ?? []).map((s) => [s.id, s.tradingName || s.legalName]))
   const stationsToVerify = cat?.filter((c) => c.station.status === 'draft' && c.supplier.status !== 'rejected') ?? null
   const products = cat?.flatMap((c) => c.products) ?? null
-  const settlementWork = set ? set.queue.supplierPayoutsToSend + set.queue.payoutResultsToRecord + set.queue.driverStatementsToCredit + set.queue.openDebts : null
+  const settlementWork = set ? set.queue.oldSupplierPayoutsToReview + set.queue.driverStatementsToCredit + set.queue.openDebts : null
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -89,7 +89,7 @@ export default function GasOverviewPage() {
         <StatsCard title="Orders needing attention" value={attention?.length ?? '—'} loading={!orders}
           hint={openOrders != null ? `${openOrders} outstanding of the latest ${ord!.length}` : undefined}
           icon={<AlertTriangle size={20} />} iconColor="var(--tone-danger-fg)" iconBg="var(--tone-danger-bg)" />
-        <StatsCard title="Settlement to action" value={settlementWork ?? '—'} hint="Payouts, wallet credits and open debts" loading={!settlement}
+        <StatsCard title="Settlement to action" value={settlementWork ?? '—'} hint="Driver wallet credits, open debts and old payouts to review" loading={!settlement}
           icon={<Scale size={20} />} iconColor="var(--tone-info-fg)" iconBg="var(--tone-info-bg)" />
       </div>
 
@@ -159,8 +159,8 @@ export default function GasOverviewPage() {
         <Panel title="Settlement" subtitle="Work waiting for a super admin" actions={<Link href="/gas-settlement" className="btn btn-secondary">Open settlement</Link>}>
           {settlement && 'error' in settlement ? <ErrorState message={settlement.error} onRetry={load} /> : !set ? <div className="skeleton" style={{ height: '96px' }} /> : (
             <>
-              <Link href="/gas-settlement#statements" style={{ ...row, textDecoration: 'none' }}><span style={{ flex: 1, color: 'var(--text-primary)' }}>Supplier payouts ready to send</span><b>{set.queue.supplierPayoutsToSend}</b></Link>
-              <Link href="/gas-settlement#statements" style={{ ...row, textDecoration: 'none' }}><span style={{ flex: 1, color: 'var(--text-primary)' }}>Bridge results to record</span><b>{set.queue.payoutResultsToRecord}</b></Link>
+              <Link href="/gas-supplier-payouts" style={{ ...row, textDecoration: 'none' }}><span style={{ flex: 1, color: 'var(--text-primary)' }}>Supplier withdrawals and recipients</span><span style={muted}>Supplier payouts</span></Link>
+              {set.queue.oldSupplierPayoutsToReview > 0 && <Link href="/gas-settlement#statements" style={{ ...row, textDecoration: 'none' }}><span style={{ flex: 1, color: 'var(--tone-danger-fg)' }}>Old statement payouts to review with Bridge</span><b>{set.queue.oldSupplierPayoutsToReview}</b></Link>}
               <Link href="/gas-settlement#statements" style={{ ...row, textDecoration: 'none' }}><span style={{ flex: 1, color: 'var(--text-primary)' }}>Driver statements to credit</span><b>{set.queue.driverStatementsToCredit}</b></Link>
               <Link href="/gas-settlement#debts" style={{ ...row, textDecoration: 'none' }}><span style={{ flex: 1, color: 'var(--text-primary)' }}>Open debts</span><b>{set.queue.openDebts}</b></Link>
               <Link href="/gas-settlement#terms" style={{ ...row, textDecoration: 'none', borderBottom: 'none' }}>

@@ -54,12 +54,14 @@ test('C14-04 documents are never reported as uploaded: only "manual verification
 test('C14-05 settlement counts use the settlement page rules and compute no amounts', () => {
   const q = ops.settlementQueue([
     { party: 'supplier', status: 'prepared', netPesewas: 5000, payoutStatus: 'not_started' },
+    // An old statement payout left in progress: reviewed with Bridge, never sent again.
     { party: 'supplier', status: 'prepared', netPesewas: 5000, payoutStatus: 'payout_in_progress', payout: { outcome: 'sent' } },
     { party: 'supplier', status: 'prepared', netPesewas: 0, payoutStatus: 'not_started' },
     { party: 'driver', status: 'prepared', netPesewas: 900, payoutStatus: 'not_started' },
     { party: 'platform', status: 'prepared', netPesewas: 700, payoutStatus: 'not_started' },
   ], [{ status: 'outstanding' }, { status: 'resolution_proposed' }, { status: 'resolved' }])
-  assert.deepEqual(q, { supplierPayoutsToSend: 1, payoutResultsToRecord: 1, driverStatementsToCredit: 1, openDebts: 2 })
+  // A not-started supplier statement is no admin work: the supplier's withdrawal credits it.
+  assert.deepEqual(q, { oldSupplierPayoutsToReview: 1, driverStatementsToCredit: 1, openDebts: 2 })
   assert.equal(a.switchState({ enabled: true }), 'on')
   assert.equal(a.switchState({ enabled: 'true' }), 'off')
   assert.equal(a.switchState(null), 'off')
@@ -84,11 +86,11 @@ test('C14-07 a correction request needs a meaningful reason; other rules are unc
   assert.equal(g.transitionProblem({ uid: 's', role: 'super_admin' }, pending, 'approved'), null)
 })
 
-test('C14-08 Gas navigation: overview, suppliers, supplier then direct orders, settlement, configuration', () => {
+test('C14-08 Gas navigation: overview, suppliers, supplier then direct orders, settlement, supplier payouts, configuration', () => {
   const nav = read('src/components/layout/nav.ts')
   const gas = nav.slice(nav.indexOf("label: 'Gas'"), nav.indexOf("label: 'Finance'"))
   const hrefs = [...gas.matchAll(/href: '([^']+)'/g)].map((m) => m[1])
-  assert.deepEqual(hrefs, ['/gas', '/gas-suppliers', '/gas-supplier-orders', '/gas-orders', '/gas-settlement', '/gas-configuration'])
+  assert.deepEqual(hrefs, ['/gas', '/gas-suppliers', '/gas-supplier-orders', '/gas-orders', '/gas-settlement', '/gas-supplier-payouts', '/gas-configuration'])
   for (const r of ['gas', 'gas-configuration']) assert.ok(read(`src/app/${r}/page.tsx`).length > 0)
 })
 

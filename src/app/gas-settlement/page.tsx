@@ -4,10 +4,10 @@
 // go through the super-admin callables in gas_settlement_ledger.js:
 // propose / approve / reject commission terms (approval by a different
 // super admin), reverse entitlements, prepare statements; and through
-// gas_supplier_payouts.js (behind settings/gas_supplier_payouts): send a
-// supplier statement's Mobile Money payout, record Bridge's confirmed result
-// (the only way a payout becomes paid), credit a driver statement to the
-// driver's wallet. Reversals of settled entries become debts
+// gas_supplier_payouts.js: credit a driver statement to the driver's wallet.
+// Supplier statements are not paid from here: they are credited to the
+// supplier wallet when the supplier owner withdraws (gas_supplier_wallet.js),
+// and withdrawals are monitored on /gas-supplier-payouts. Reversals of settled entries become debts
 // (gas_settlement_debts), resolved only through adminResolveGasSettlementDebt;
 // a driver's wallet credit is shown as credited, never as a payout.
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -98,9 +98,6 @@ export default function GasSettlementPage() {
   const [reversing, setReversing] = useState<string | null>(null)
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
-  const [resolving, setResolving] = useState<Statement | null>(null)
-  const [outcome, setOutcome] = useState<'paid' | 'failed' | ''>('')
-  const [evidence, setEvidence] = useState('')
 
   const load = useCallback(async () => {
     setError(null)
@@ -266,25 +263,6 @@ export default function GasSettlementPage() {
     } catch (e) { toast.error(callError(e)) } finally { setBusy(false) }
   }
 
-  async function sendPayout(s: Statement) {
-    if (!window.confirm(`Send ${formatPesewas(payableOf(s) as number)} by Mobile Money to supplier ${s.partyId}? This sends real money through Bridge and cannot be undone.`)) return
-    setBusy(true)
-    try {
-      await httpsCallable(functions, 'adminApproveGasSupplierPayout')({ statementId: s.id })
-      toast.success('Payout accepted by Bridge. Confirm it with Bridge, then record the result.')
-    } catch (e) { toast.error(callError(e)) } finally { setBusy(false); await load() }
-  }
-
-  async function recordResult() {
-    if (!resolving || !outcome) return
-    setBusy(true)
-    try {
-      await httpsCallable(functions, 'adminResolveGasSupplierPayout')({ statementId: resolving.id, outcome, evidence: evidence.trim() })
-      toast.success(outcome === 'paid' ? 'Recorded as paid.' : 'Recorded as not paid. It can be sent again.')
-      setResolving(null); setOutcome(''); setEvidence(''); await load()
-    } catch (e) { toast.error(callError(e)) } finally { setBusy(false) }
-  }
-
   async function decideDebt() {
     if (!deciding) return
     const { debt, choice } = deciding
@@ -334,8 +312,9 @@ export default function GasSettlementPage() {
       </div>
 
       <Notice tone="warning">
-        Payouts move real money and work only while settings/gas_supplier_payouts is switched on. A supplier payout is paid only when you
-        record Bridge&apos;s confirmation; a Bridge acceptance alone is not a payment. Never send again a payout Bridge has not confirmed.
+        Supplier statements are no longer paid by Mobile Money from this page: they are credited to the supplier wallet when the supplier
+        owner withdraws. Supplier withdrawals are approved, rejected and confirmed on <a href="/gas-supplier-payouts">Supplier payouts</a>.
+        Crediting a driver statement adds to the driver&apos;s CTSGo wallet; it is not a payout.
       </Notice>
       {error && <Notice tone="danger">{error}</Notice>}
 
@@ -375,8 +354,7 @@ export default function GasSettlementPage() {
                           {s.payout?.outcome && <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{PAYOUT_OUTCOME_LABELS[s.payout.outcome] ?? s.payout.outcome}{s.payout.transactionId ? ` · ${s.payout.transactionId}` : ''}{s.payout.maskedNumber ? ` · ${s.payout.network} ${s.payout.maskedNumber}` : ''}</div>}
                         </td>
                         <td>
-                          {isSuper && c.reconciles && action === 'send_mobile_money' && <button style={buttonStyle('primary', busy)} disabled={busy} onClick={() => sendPayout(s)}>{s.payoutStatus === 'failed' ? 'Send again' : 'Send Mobile Money'}</button>}
-                          {isSuper && action === 'record_result' && <button style={buttonStyle('warning', busy)} disabled={busy} onClick={() => { setResolving(s); setOutcome(''); setEvidence('') }}>Record Bridge result</button>}
+                          {action === 'review_old_supplier_payout' && <span style={{ fontSize: '12px', color: 'var(--danger, #dc2626)' }} title="Started by the removed statement Mobile Money payout. Never send it again; confirm the result with Bridge and engineering before anything else.">Review with Bridge · no action here</span>}
                           {isSuper && c.reconciles && action === 'credit_driver_wallet' && <button style={buttonStyle('primary', busy)} disabled={busy} onClick={() => creditDriver(s)}>Credit driver wallet</button>}
                         </td>
                       </tr>
@@ -600,20 +578,6 @@ export default function GasSettlementPage() {
           </div>
         </Card>
       </TabPanel>
-
-      {resolving && (
-        <Modal title={`Record the Bridge result for ${resolving.id}`} onClose={() => setResolving(null)} footer={
-          <button style={buttonStyle(outcome === 'paid' ? 'primary' : 'danger', busy || !outcome || !payoutEvidenceOk(evidence))} disabled={busy || !outcome || !payoutEvidenceOk(evidence)} onClick={recordResult}>Record</button>
-        }>
-          <Notice>Transaction {resolving.payout?.transactionId ?? '—'} · {formatPesewas(resolving.netPesewas as number)} to {resolving.payout?.accountName ?? resolving.partyId} ({resolving.payout?.network} {resolving.payout?.maskedNumber}). Confirm the result with Bridge first.</Notice>
-          <Field label="Result confirmed by Bridge" hint="Paid: the supplier received it. Failed: Bridge confirms it was not paid; it can then be sent again.">
-            <Select<'paid' | 'failed'> value={outcome || undefined} onChange={setOutcome} placeholder="Choose" options={['paid', 'failed'] as const} />
-          </Field>
-          <Field label="Evidence from Bridge" hint="Required: Bridge's reference, statement line or support ticket.">
-            <TextInput value={evidence} onChange={setEvidence} />
-          </Field>
-        </Modal>
-      )}
 
       {deciding && (
         <Modal title={`${deciding.choice.label}: debt ${deciding.debt.id.slice(0, 18)}`} onClose={() => setDeciding(null)} footer={

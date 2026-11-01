@@ -33,6 +33,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { href: '/gas-supplier-orders', icon: Truck, label: 'Supplier Gas Orders' },
     { href: '/gas-orders', icon: Flame, label: 'Direct Gas Orders' },
     { href: '/gas-settlement', icon: Scale, label: 'Gas Settlement' },
+    { href: '/gas-supplier-payouts', icon: Wallet, label: 'Supplier Payouts' },
     { href: '/gas-configuration', icon: SlidersHorizontal, label: 'Gas Configuration' },
   ] },
   { label: 'Finance', links: [
