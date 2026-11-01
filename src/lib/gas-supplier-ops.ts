@@ -617,3 +617,18 @@ export function gasLoadError(e: unknown, collections: string, what: string): str
   }
   return `Could not load ${what}: ${err?.code || err?.message || String(e)}`
 }
+
+/** Settlement work waiting for an admin, counted with the settlement page's own rules. No amounts are computed. */
+export function settlementQueue(
+  statements: ReadonlyArray<Parameters<typeof statementPayoutAction>[0]>,
+  debts: ReadonlyArray<{ status?: string }>,
+) {
+  const actions = statements.map(statementPayoutAction)
+  return {
+    supplierPayoutsToSend: actions.filter((a) => a === 'send_mobile_money').length,
+    payoutResultsToRecord: actions.filter((a) => a === 'record_result').length,
+    driverStatementsToCredit: actions.filter((a) => a === 'credit_driver_wallet').length,
+    // Open as the settlement page loads them: outstanding, or with a resolution awaiting a second admin.
+    openDebts: debts.filter((d) => d.status === 'outstanding' || d.status === 'resolution_proposed').length,
+  }
+}

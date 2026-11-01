@@ -20,7 +20,7 @@ const kindOf = (t: Transition) =>
 /** Why this action is unavailable to the admin now, or null. The reason is asked for in the dialog. */
 export function actionProblem(admin: Admin, supplier: Supplier, t: Transition): string | null {
   const missing = submissionProblems(supplier)
-  return transitionProblem({ uid: admin.uid, role: admin.role }, supplier, t.to, 'x'.repeat(10))
+  return transitionProblem({ uid: admin.uid, role: admin.role }, supplier, t.to, 'x'.repeat(200))
     ?? (t.to === 'pending_verification' && supplier.status === 'draft' && missing.length ? 'Complete the required details first.' : null)
 }
 
@@ -47,7 +47,11 @@ export function StatusActions({ supplier, admin, onChanged, compact }: {
     } finally { setBusy(false) }
   }
 
-  const reasonShort = !!pending?.reasonRequired && reason.trim().length < MIN_REASON_LENGTH
+  // The same check the save runs, with the reason as typed (permissions were checked on the button).
+  const reasonProblem = pending && (pending.reasonRequired || reason.trim())
+    ? transitionProblem({ uid: admin.uid, role: admin.role }, supplier, pending.to, reason)
+    : null
+  const reasonShort = !!pending?.reasonRequired && (reason.trim().length < MIN_REASON_LENGTH || !!reasonProblem)
 
   return (
     <>
@@ -78,7 +82,13 @@ export function StatusActions({ supplier, admin, onChanged, compact }: {
             {pending.to === 'approved' && ' Approval does not turn orders on; that is a separate step once stations and products are verified.'}
           </div>
           {pending.to === 'rejected' && <Notice tone="warning">The supplier stays rejected until a super admin reopens it as a draft.</Notice>}
-          <Field label={pending.reasonRequired ? 'Reason *' : 'Reason (optional)'} hint={pending.reasonRequired ? 'Recorded in the supplier history.' : undefined}>
+          {supplier.status === 'pending_verification' && pending.to === 'draft' && (
+            <Notice>
+              The application returns to draft so its details can be corrected, then submitted again. Say what needs fixing.
+              The supplier portal does not show this reason yet, so send it to the supplier as well.
+            </Notice>
+          )}
+          <Field label={pending.reasonRequired ? 'Reason *' : 'Reason (optional)'} hint={reason.trim() && reasonProblem ? reasonProblem : pending.reasonRequired ? 'Recorded in the supplier history.' : undefined}>
             <TextArea value={reason} onChange={setReason} />
           </Field>
         </Modal>

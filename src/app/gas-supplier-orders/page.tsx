@@ -10,59 +10,18 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { collection, doc, getDoc, getDocs, limit, orderBy, query } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 import { toast } from 'sonner'
-import { AlertTriangle, RefreshCw } from 'lucide-react'
+import Link from 'next/link'
+import { AlertTriangle, RefreshCw, Search } from 'lucide-react'
 import { db, functions } from '@/lib/firebase'
 import { EmptyState, TableSkeleton } from '@/components/shared'
-import { Card, Field, Modal, Notice, TextArea, buttonStyle } from '@/components/features/gas-suppliers/ui'
+import { Card, Field, Modal, Notice, TextArea, buttonStyle, inputStyle } from '@/components/features/gas-suppliers/ui'
 import {
   ADMIN_CANCELLABLE, ADMIN_RELEASABLE, ALLOCATION_SETTLEMENT_LABELS, PAYMENT_STATUS_LABELS, SUPPLIER_ORDER_STATUSES,
   allocationReadError, checkAllocation, cylinderRecoveryNotice, deliveryModeLabel, fallbackReasonLabel, formatBps, formatPesewas, gasLoadError, offerHistory,
-  orderAttention, supplierOrderLabel, type Allocation, type OrderOffers,
+  orderAttention, supplierOrderLabel, type Allocation,
 } from '@/lib/gas-supplier-ops'
-
-interface Row {
-  id: string
-  status: string
-  supplierId: string
-  stationId: string
-  orderType: string
-  cylinderSize: string
-  quantity: number
-  total: number | null
-  driverId: string | null
-  escrowId: string | null
-  paymentStatus: string | null
-  deliveryMode: string | null
-  completionFailures: number
-  refundPending: boolean
-  refundReview: string | null
-  offers: OrderOffers
-  fallbackReason: string | null
-  createdAtMs: number | null
-  updatedAtMs: number | null
-}
-
-const ms = (v: unknown): number | null => (v && typeof (v as { toMillis?: unknown }).toMillis === 'function' ? (v as { toMillis(): number }).toMillis() : null)
-const LAST_CHANGE = ['deliveredAt', 'handedOverAt', 'arrivedAtStationAt', 'acceptedAt', 'confirmedAt', 'paidAt', 'cancelledAt', 'createdAt'] as const
-
-function toRow(id: string, d: Record<string, any>): Row {
-  const changes = LAST_CHANGE.map((k) => ms(d[k])).filter((x): x is number => x != null)
-  return {
-    id, status: d.status, supplierId: d.supplierId, stationId: d.stationId, orderType: d.orderType, cylinderSize: d.cylinderSize,
-    quantity: d.quantity, total: typeof d.priceSnapshot?.total === 'number' ? d.priceSnapshot.total : null,
-    driverId: d.driverId ?? null, escrowId: d.payment?.escrowId ?? null,
-    paymentStatus: typeof d.payment?.status === 'string' ? d.payment.status : null, refundPending: d.refundPending === true,
-    deliveryMode: typeof d.deliveryMode === 'string' ? d.deliveryMode : null, completionFailures: Number.isInteger(d.completionFailures) ? d.completionFailures : 0,
-    refundReview: typeof d.refundReview === 'string' ? d.refundReview : null,
-    offers: {
-      riderOffer: d.riderOffer ? { driverId: d.riderOffer.driverId, seq: d.riderOffer.seq, expiresAtMs: ms(d.riderOffer.expiresAt) } : null,
-      lastRiderOffer: d.lastRiderOffer ? { driverId: d.lastRiderOffer.driverId, seq: d.lastRiderOffer.seq, outcome: d.lastRiderOffer.outcome, atMs: ms(d.lastRiderOffer.at) } : null,
-      declinedRiderIds: d.declinedRiderIds,
-    },
-    fallbackReason: typeof d.ctsgoFallbackReason === 'string' ? d.ctsgoFallbackReason : null,
-    createdAtMs: ms(d.createdAt), updatedAtMs: changes.length ? Math.max(...changes) : null,
-  }
-}
+import { toRow, type SupplierOrderRow as Row } from '@/lib/gas-supplier-orders'
+import { useGasSwitches } from '@/components/features/gas-suppliers/GasSwitches'
 
 const callError = (e: any) => e?.message || 'The request failed.'
 
@@ -70,6 +29,19 @@ export default function GasSupplierOrdersPage() {
   const [rows, setRows] = useState<Row[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<'attention' | 'open' | 'all' | string>('attention')
+  const [supplier, setSupplier] = useState('')
+  const [search, setSearch] = useState('')
+  const [names, setNames] = useState<Record<string, string>>({})
+  const switches = useGasSwitches()
+
+  // ?supplier=<id> (from a supplier's workspace) opens this supplier's orders, all statuses.
+  useEffect(() => {
+    const sid = new URLSearchParams(window.location.search).get('supplier')
+    if (sid) { setSupplier(sid); setFilter('all') }
+    getDocs(collection(db, 'gas_suppliers'))
+      .then((snap) => setNames(Object.fromEntries(snap.docs.map((d) => [d.id, String(d.data().tradingName || d.data().legalName || d.id)]))))
+      .catch(() => setNames({}))
+  }, [])
   const [selected, setSelected] = useState<Row | null>(null)
   const [events, setEvents] = useState<Array<Record<string, any>> | null>(null)
   const [allocation, setAllocation] = useState<Partial<Allocation> | null | undefined>(undefined)
@@ -92,11 +64,14 @@ export default function GasSupplierOrdersPage() {
   useEffect(() => { load() }, [load])
 
   const shown = useMemo(() => (rows ?? []).filter((r) => {
+    if (supplier && r.supplierId !== supplier) return false
+    const q = search.trim().toLowerCase()
+    if (q && !r.id.toLowerCase().includes(q) && !(names[r.supplierId] ?? r.supplierId).toLowerCase().includes(q)) return false
     if (filter === 'all') return true
     if (filter === 'attention') return orderAttention(r, now).length > 0
     if (filter === 'open') return !['delivered', 'cancelled'].includes(r.status)
     return r.status === filter
-  }), [rows, filter, now])
+  }), [rows, filter, now, supplier, search, names])
 
   async function open(r: Row) {
     setSelected(r); setEvents(null); setCancelReason(''); setAllocation(undefined); setAllocationError(null); setRecoveryAlert(null)
@@ -148,21 +123,44 @@ export default function GasSupplierOrdersPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
         <div style={{ flex: 1 }}>
-          <h1 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)' }}>Gas supplier orders</h1>
-          <p style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>Orders placed with approved suppliers. Status changes come only from the passenger, supplier, driver and admin callables.</p>
+          <h1 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)' }}>Supplier Gas Orders</h1>
+          <p style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>
+            Orders placed with approved suppliers. Status changes come only from the passenger, supplier, driver and admin callables.
+            Orders from the older direct Gas flow are under <Link href="/gas-orders" style={{ color: 'var(--accent-text)' }}>Direct Gas Orders</Link>.
+          </p>
         </div>
         <button style={buttonStyle('secondary')} onClick={() => { setRows(null); load() }}><RefreshCw size={14} /> Refresh</button>
       </div>
 
-      <Notice>
-        Supplier-order fulfilment is switched off until the escrow security review and a production go-ahead
-        (settings/gas_supplier_fulfilment). Until then orders stay at &ldquo;Awaiting payment&rdquo;.
-      </Notice>
+      {switches && switches.fulfilment !== 'on' && (
+        <Notice tone="warning">
+          {switches.fulfilment === 'off'
+            ? 'Supplier-order fulfilment is switched off (settings/gas_supplier_fulfilment), so paid orders are not sent to suppliers.'
+            : 'The supplier-order fulfilment switch (settings/gas_supplier_fulfilment) could not be read.'}
+        </Notice>
+      )}
 
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        {[['attention', `Needs attention (${attentionCount})`], ['open', 'Open'], ['all', 'All'], ...SUPPLIER_ORDER_STATUSES.map((s) => [s, supplierOrderLabel(s)])].map(([k, l]) => (
-          <button key={k} onClick={() => setFilter(k)} style={buttonStyle(filter === k ? 'primary' : 'secondary')}>{l}</button>
-        ))}
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="segmented" role="group" aria-label="Order queue">
+          {([['attention', `Needs attention ${attentionCount}`], ['open', 'Outstanding'], ['all', 'All']] as const).map(([k, l]) => (
+            <button key={k} aria-pressed={filter === k} onClick={() => setFilter(k)}>{l}</button>
+          ))}
+        </div>
+        <select aria-label="Status" value={['attention', 'open', 'all'].includes(filter) ? '' : filter}
+          onChange={(e) => setFilter(e.target.value || 'all')} style={{ ...inputStyle, width: 'auto' }}>
+          <option value="">Any status</option>
+          {SUPPLIER_ORDER_STATUSES.map((st) => <option key={st} value={st}>{supplierOrderLabel(st)}</option>)}
+        </select>
+        <select aria-label="Supplier" value={supplier} onChange={(e) => setSupplier(e.target.value)} style={{ ...inputStyle, width: 'auto', maxWidth: '220px' }}>
+          <option value="">All suppliers</option>
+          {Object.entries(names).sort((a, b) => a[1].localeCompare(b[1])).map(([id, n]) => <option key={id} value={id}>{n}</option>)}
+          {supplier && !names[supplier] && <option value={supplier}>{supplier}</option>}
+        </select>
+        <div style={{ marginLeft: 'auto', position: 'relative' }}>
+          <Search size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+          <input aria-label="Search orders" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Order ID or supplier"
+            style={{ ...inputStyle, width: '200px', paddingLeft: '30px' }} />
+        </div>
       </div>
 
       <Card>
@@ -178,7 +176,7 @@ export default function GasSupplierOrdersPage() {
                   <tr key={r.id} onClick={() => open(r)} style={{ cursor: 'pointer' }}>
                     <td style={{ fontFamily: 'var(--font-mono)' }}>{r.id.slice(0, 10)}</td>
                     <td>{supplierOrderLabel(r.status)}</td>
-                    <td style={{ fontFamily: 'var(--font-mono)' }}>{r.supplierId}</td>
+                    <td>{names[r.supplierId] ?? <span style={{ fontFamily: 'var(--font-mono)' }}>{r.supplierId}</span>}</td>
                     <td>{r.quantity} × {r.cylinderSize} · {r.orderType}</td>
                     <td>{r.total == null ? '—' : `GH₵${r.total.toFixed(2)}`}</td>
                     <td>{r.paymentStatus ? PAYMENT_STATUS_LABELS[r.paymentStatus] ?? r.paymentStatus : r.escrowId ? 'Verified hold' : '—'}</td>

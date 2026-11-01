@@ -199,7 +199,8 @@ export interface Transition {
 // orders off; they are re-enabled separately.
 export const TRANSITIONS: readonly Transition[] = [
   { from: 'draft', to: 'pending_verification', action: 'Submit for verification', superAdminOnly: false, notCreator: false, reasonRequired: false },
-  { from: 'pending_verification', to: 'draft', action: 'Return to draft', superAdminOnly: false, notCreator: false, reasonRequired: false },
+  // The rules accept this without a reason; the dashboard asks for one so the supplier can be told what to fix.
+  { from: 'pending_verification', to: 'draft', action: 'Request corrections', superAdminOnly: false, notCreator: false, reasonRequired: true },
   { from: 'pending_verification', to: 'approved', action: 'Approve', superAdminOnly: true, notCreator: true, reasonRequired: false },
   { from: 'pending_verification', to: 'rejected', action: 'Reject', superAdminOnly: true, notCreator: false, reasonRequired: true },
   { from: 'approved', to: 'suspended', action: 'Suspend', superAdminOnly: true, notCreator: false, reasonRequired: true },
@@ -209,6 +210,7 @@ export const TRANSITIONS: readonly Transition[] = [
 ]
 
 export const MIN_REASON_LENGTH = 3
+export const MIN_CORRECTION_REASON_LENGTH = 15
 
 export function transitionsFrom(status: SupplierStatus): Transition[] {
   return TRANSITIONS.filter((t) => t.from === status)
@@ -226,6 +228,10 @@ export function transitionProblem(
   if (t.superAdminOnly && actor.role !== 'super_admin') return `Only a super admin can ${t.action.toLowerCase()} a supplier.`
   if (t.notCreator && actor.uid === supplier.createdBy) return 'The admin who created this supplier cannot approve it. Another super admin must.'
   if (t.reasonRequired && (reason ?? '').trim().length < MIN_REASON_LENGTH) return 'A reason is required for this action.'
+  // The supplier has to act on it, so say what to fix (dashboard-only; the rules accept any reason).
+  if (t.from === 'pending_verification' && t.to === 'draft' && (reason ?? '').trim().length < MIN_CORRECTION_REASON_LENGTH) {
+    return `Say what needs correcting (at least ${MIN_CORRECTION_REASON_LENGTH} characters).`
+  }
   return null
 }
 
@@ -360,3 +366,57 @@ export function orderPriceSnapshot(p: Pick<Product, 'id' | 'price' | 'handlingFe
     productTotal: Math.round(p.price * quantity * 100) / 100,
   })
 }
+
+/**
+ * No document upload or document record exists yet, so the only honest
+ * statuses are whether a reviewer has written down what they checked.
+ */
+export function documentStatus(s: Pick<SupplierDetails, 'verificationNotes'>): { recorded: boolean; label: string; detail: string } {
+  return s.verificationNotes?.trim()
+    ? { recorded: true, label: 'Manual verification recorded', detail: 'No documents are uploaded through CTSGo yet; see the verification notes.' }
+    : { recorded: false, label: 'Not yet provided', detail: 'No documents are uploaded through CTSGo yet, and no manual check is recorded in the verification notes.' }
+}
+
+export interface ApplicationCheck { id: string; label: string; ok: boolean; detail?: string }
+
+/**
+ * What a reviewer should confirm before deciding on an application. Advisory:
+ * approval is gated only by TRANSITIONS / transitionProblem (and the rules),
+ * not by this list. `today` is YYYY-MM-DD, for the licence-expiry check.
+ */
+export function applicationChecklist(
+  supplier: SupplierDetails,
+  stations: Array<{ station: StationDetails & { status: StationStatus }; products: Array<Pick<Product, 'verified' | 'price'>> }>,
+  today: string,
+): ApplicationCheck[] {
+  const missing = submissionProblems(supplier)
+  const docs = documentStatus(supplier)
+  const reg = supplier.registration ?? {}
+  const regMissing = [!reg.businessRegNo?.trim() && 'registration no.', !reg.licenceNo?.trim() && 'licence no.'].filter(Boolean)
+  const expiry = reg.licenceExpiry?.trim() ?? ''
+  const expired = /^\d{4}-\d{2}-\d{2}$/.test(expiry) && expiry < today
+  const unverifiable = stations.filter((s) => s.station.status !== 'verified' && stationVerificationProblems(s.station).length > 0)
+  const products = stations.flatMap((s) => s.products)
+  const priced = products.filter((p) => Number.isFinite(p.price) && p.price > 0)
+  return [
+    { id: 'details', label: 'Business and contact details complete', ok: missing.length === 0, detail: missing.length ? `Missing: ${missing.join(', ')}` : undefined },
+    { id: 'registration', label: 'Registration and licence numbers recorded', ok: regMissing.length === 0, detail: regMissing.length ? `Missing: ${regMissing.join(', ')}` : undefined },
+    { id: 'licence', label: 'Licence in date', ok: !!expiry && !expired, detail: !expiry ? 'No expiry date recorded' : expired ? `Expired ${expiry}` : undefined },
+    { id: 'documents', label: `Verification documents: ${docs.label.toLowerCase()}`, ok: docs.recorded, detail: docs.detail },
+    { id: 'stations', label: 'At least one station proposed', ok: stations.length > 0,
+      detail: unverifiable.length ? `${unverifiable.length} ${unverifiable.length === 1 ? 'station is' : 'stations are'} missing details needed for verification` : undefined },
+    { id: 'prices', label: 'Products with prices proposed', ok: priced.length > 0,
+      detail: products.length ? `${products.filter((p) => p.verified).length} of ${products.length} verified` : undefined },
+  ]
+}
+
+/** One status_history entry in words; a return to draft from review is a correction request. */
+export function historyLabel(h: { type: string; fromStatus?: SupplierStatus | null; toStatus?: SupplierStatus | null }): string {
+  if (h.type === 'created') return 'Created as draft'
+  if (h.type === 'orders_enabled') return 'Orders turned on'
+  if (h.type === 'orders_disabled') return 'Orders turned off'
+  if (h.fromStatus === 'pending_verification' && h.toStatus === 'draft') return 'Corrections requested'
+  if (h.fromStatus === 'draft' && h.toStatus === 'pending_verification') return 'Submitted for verification'
+  return `${label(h.fromStatus)} → ${label(h.toStatus)}`
+}
+

@@ -1,17 +1,19 @@
 'use client'
 // One supplier's workspace: a compact sticky header (name, status, the status
-// actions) above sticky tabs. Each tab shows data and actions this page
-// already had; nothing here changes what an action does or who may take it.
+// actions) above sticky tabs. This supplier's orders and settlement are
+// read-only here (their actions stay on Supplier Gas Orders and Gas
+// Settlement); platform-wide service times are in Gas Configuration. Nothing
+// here changes what an action does or who may take it.
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { ArrowLeft, CheckCircle2, Circle, Pencil, Plus, ShieldCheck, Power, PowerOff, Tag } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
-import { Avatar, EmptyState, StatusBadge, TableSkeleton } from '@/components/shared'
+import { Avatar, ConfirmDialog, EmptyState, StatusBadge, TableSkeleton } from '@/components/shared'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import {
-  PRODUCT_AVAILABILITY, enabledOrderTypes, label, stationVerificationProblems, submissionProblems,
+  PRODUCT_AVAILABILITY, documentStatus, enabledOrderTypes, historyLabel, label, stationVerificationProblems, submissionProblems,
   supplierReadiness,
   type Product, type ProductAvailability, type Station, type Supplier,
 } from '@/lib/gas-suppliers'
@@ -21,12 +23,13 @@ import {
 } from '@/lib/gas-supplier-data'
 import { SupplierForm } from '@/components/features/gas-suppliers/SupplierForm'
 import { StationForm } from '@/components/features/gas-suppliers/StationForm'
-import { ServiceTimes } from '@/components/features/gas-suppliers/ServiceTimes'
 import { DispatchStatus } from '@/components/features/gas-suppliers/DispatchStatus'
 import { ProductForm } from '@/components/features/gas-suppliers/ProductForm'
 import { SupplierLogins } from '@/components/features/gas-suppliers/SupplierLogins'
 import { SupplierRiders } from '@/components/features/gas-suppliers/SupplierRiders'
 import { StatusActions } from '@/components/features/gas-suppliers/StatusActions'
+import { SupplierOrdersPanel, SupplierSettlementPanel } from '@/components/features/gas-suppliers/SupplierActivityPanels'
+import { availabilityChangeKind, stockOwnerLabel } from '@/lib/gas-admin'
 import { Card, KeyValue, Notice, OrdersBadge, buttonStyle, inputStyle } from '@/components/features/gas-suppliers/ui'
 
 type StationRow = { station: Station; products: Product[] }
@@ -35,8 +38,9 @@ const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'business', label: 'Business details' },
   { id: 'stations', label: 'Stations & prices' },
-  { id: 'operations', label: 'Operations' },
+  { id: 'orders', label: 'Orders' },
   { id: 'riders', label: 'Riders' },
+  { id: 'settlement', label: 'Settlement' },
   { id: 'logins', label: 'Logins' },
   { id: 'activity', label: 'Activity' },
 ] as const
@@ -59,11 +63,13 @@ export default function SupplierDetailPage() {
   const [busy, setBusy] = useState(false)
   const [stationForm, setStationForm] = useState<{ station?: Station } | null>(null)
   const [productForm, setProductForm] = useState<{ stationId: string; product?: Product } | null>(null)
+  const [override, setOverride] = useState<{ station: Station; product: Product; to: ProductAvailability } | null>(null)
 
   // The open tab is kept in the address (#riders), so a reload or a shared link opens it.
   useEffect(() => {
     const h = window.location.hash.slice(1)
-    if (isTab(h)) { setTab(h); setVisited((v) => new Set(v).add(h)) }
+    const t = h === 'operations' ? 'orders' : h
+    if (isTab(t)) { setTab(t); setVisited((v) => new Set(v).add(t)) }
   }, [])
   const openTab = (t: TabId) => {
     setTab(t); setVisited((v) => new Set(v).add(t))
@@ -214,6 +220,7 @@ export default function SupplierDetailPage() {
             <KeyValue k="Created" v={formatDate(supplier.createdAt)} />
             <KeyValue k="Last updated" v={formatDate(supplier.updatedAt)} />
           </div>
+          <KeyValue k="Verification documents" v={<>{documentStatus(supplier).label}<span style={{ display: 'block', fontSize: '12px', color: 'var(--text-tertiary)' }}>{documentStatus(supplier).detail}</span></>} />
           <KeyValue k="Verification notes" v={supplier.verificationNotes && <span style={{ whiteSpace: 'pre-wrap' }}>{supplier.verificationNotes}</span>} />
           <KeyValue k="Internal notes" v={supplier.internalNotes && <span style={{ whiteSpace: 'pre-wrap' }}>{supplier.internalNotes}</span>} />
         </Card>
@@ -236,6 +243,7 @@ export default function SupplierDetailPage() {
                       {station.address || 'No address'} · {products.length} {products.length === 1 ? 'product' : 'products'}
                     </div>
                   </div>
+                  <span style={{ fontSize: '11.5px', color: 'var(--text-tertiary)' }}>{stockOwnerLabel(station.stockApproach)}</span>
                   <StatusBadge status={station.status} />
                 </summary>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingTop: '12px' }}>
@@ -278,7 +286,7 @@ export default function SupplierDetailPage() {
                   ) : (
                     <div style={{ overflowX: 'auto' }}>
                       <table className="data-table">
-                        <thead><tr><th>Order type</th><th>Size</th><th>Brand</th><th>Price</th><th>Handling</th><th>Version</th><th>Verified</th><th>Availability</th><th>Actions</th></tr></thead>
+                        <thead><tr><th>Order type</th><th>Size</th><th>Brand</th><th>Price</th><th>Handling</th><th>Version</th><th>Verified</th><th title={stockOwnerLabel(station.stockApproach)}>Availability{station.stockApproach === 'supplier_reported' ? ' (supplier-reported)' : ''}</th><th>Actions</th></tr></thead>
                         <tbody>
                           {products.map((p) => (
                             <tr key={p.id}>
@@ -291,7 +299,12 @@ export default function SupplierDetailPage() {
                               <td><StatusBadge status={p.verified ? 'verified' : 'unverified'} /></td>
                               <td>
                                 <select value={p.availability} disabled={busy} aria-label={`Availability of ${label(p.cylinderSize)} ${label(p.brand)}`}
-                                  onChange={(e) => run('Availability updated', () => setProductAvailability(supplier.id, station.id, p.id, e.target.value as ProductAvailability, admin))}
+                                  onChange={(e) => {
+                                    const to = e.target.value as ProductAvailability
+                                    // Changing stock the supplier reports is an override: confirm it first.
+                                    if (availabilityChangeKind(station.stockApproach, p.availability, to) === 'override') setOverride({ station, product: p, to })
+                                    else run('Availability updated', () => setProductAvailability(supplier.id, station.id, p.id, to, admin))
+                                  }}
                                   style={{ ...inputStyle, width: 'auto', padding: '4px 8px', fontSize: '12px' }}>
                                   {PRODUCT_AVAILABILITY.map((a) => (
                                     <option key={a} value={a} disabled={a === 'available' && !p.verified}>{label(a)}{a === 'available' && !p.verified ? ' (verify first)' : ''}</option>
@@ -322,17 +335,11 @@ export default function SupplierDetailPage() {
         </Card>
       </Panel>
 
-      {/* Operations */}
-      <Panel id="operations" tab={tab} visited={visited}>
-        <ServiceTimes stations={stations.map(({ station }) => ({ id: station.id, name: String(station.name ?? station.id) }))} />
-        <Card title="Orders and settlement">
-          <Notice>
-            No Gas orders are linked to suppliers yet, so there are no supplier orders, commissions, payable balances or
-            settlement statements to show. These appear here once orders carry a supplier and station and the backend
-            records supplier settlement. No supplier payouts can be made from the dashboard.
-          </Notice>
-        </Card>
-      </Panel>
+      {/* Orders (read-only; actions are on Supplier Gas Orders) */}
+      <Panel id="orders" tab={tab} visited={visited}><SupplierOrdersPanel supplierId={supplier.id} /></Panel>
+
+      {/* Settlement (read-only; actions are on Gas Settlement) */}
+      <Panel id="settlement" tab={tab} visited={visited}><SupplierSettlementPanel supplierId={supplier.id} /></Panel>
 
       {/* Linked riders (super-admin callables in gas_supplier_riders.js) */}
       <Panel id="riders" tab={tab} visited={visited}><SupplierRiders supplierId={supplier.id} /></Panel>
@@ -352,10 +359,7 @@ export default function SupplierDetailPage() {
                     <tr key={h.id}>
                       <td>{h.seq}</td>
                       <td style={{ fontSize: '12px' }}>
-                        {h.type === 'created' ? 'Created as draft'
-                          : h.type === 'orders_enabled' ? 'Orders turned on'
-                          : h.type === 'orders_disabled' ? 'Orders turned off'
-                          : `${label(h.fromStatus)} → ${label(h.toStatus)}`}
+                        {historyLabel(h)}
                       </td>
                       <td style={{ fontSize: '12px' }}>{h.reason || '—'}</td>
                       <td style={{ fontSize: '12px' }}>{h.byEmail || h.by}</td>
@@ -368,6 +372,21 @@ export default function SupplierDetailPage() {
           )}
         </Card>
       </Panel>
+
+      <ConfirmDialog
+        open={!!override}
+        title="Override supplier-reported stock?"
+        description={override ? `${override.station.name} reports its own stock. Setting this product to “${label(override.to)}” replaces the supplier's value until the supplier reports again. Use it only to correct a wrong report.` : ''}
+        confirmLabel="Override stock"
+        confirmColor="var(--primary-dark)"
+        loading={busy}
+        onCancel={() => setOverride(null)}
+        onConfirm={() => {
+          const o = override!
+          setOverride(null)
+          run('Stock overridden', () => setProductAvailability(supplier.id, o.station.id, o.product.id, o.to, admin))
+        }}
+      />
 
       {editing && <SupplierForm supplier={supplier} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); load() }} />}
       {stationForm && (
