@@ -52,3 +52,38 @@ test('C13-05 one account status per driver; suspended wins, rejected is not show
   assert.equal(s.driverAccountStatus({ isApproved: false, signupStep: 'pendingApproval' }), 'pending')
   assert.equal(s.driverAccountStatus({}), 'pending')
 })
+
+const g = await import('../src/lib/gas-suppliers.ts')
+
+const applicant = (over = {}) => ({
+  legalName: 'Tema Gas Ltd', operatingModel: 'lpg_station', address: 'Spintex Rd',
+  contact: { name: 'Abena', phone: '+233 20 555 0101' }, fulfillment: { exchangeEmpty: true },
+  registration: { businessRegNo: 'CS-1', licenceNo: 'NPA-7', licenceExpiry: '2027-06-30' },
+  verificationNotes: 'Licence seen.', ...over,
+})
+const station = (over = {}) => ({ station: { name: 'Spintex', status: 'draft', address: 'Rd', location: { latitude: 5.6, longitude: -0.1 }, contact: { phone: '024' }, operatingHours: '6-9', ...over }, products: [{ verified: false, price: 120 }] })
+const failing = (c) => c.filter((x) => !x.ok).map((x) => x.id)
+
+test('C13-06 application checklist: a complete application passes every check', () => {
+  assert.deepEqual(failing(g.applicationChecklist(applicant(), [station()], '2026-11-01')), [])
+})
+
+test('C13-07 application checklist names what is missing, expired or unproposed', () => {
+  const c = g.applicationChecklist(applicant({ registration: { licenceNo: 'NPA-7', licenceExpiry: '2026-10-31' }, verificationNotes: '' }), [], '2026-11-01')
+  assert.deepEqual(failing(c), ['registration', 'licence', 'documents', 'stations', 'prices'])
+  assert.equal(c.find((x) => x.id === 'registration').detail, 'Missing: registration no.')
+  assert.equal(c.find((x) => x.id === 'licence').detail, 'Expired 2026-10-31')
+  const gaps = g.applicationChecklist(applicant(), [station({ location: null, operatingHours: '' })], '2026-11-01').find((x) => x.id === 'stations')
+  assert.equal(gaps.ok, true)
+  assert.match(gaps.detail, /1 station is missing details/)
+})
+
+test('C13-08 requesting corrections (pending -> draft) needs a reason; the rules and approvers are unchanged', () => {
+  const t = g.TRANSITIONS.find((x) => x.from === 'pending_verification' && x.to === 'draft')
+  assert.equal(t.action, 'Request corrections')
+  assert.equal(t.superAdminOnly, false)
+  const admin = { uid: 'a', role: 'admin' }
+  assert.match(g.transitionProblem(admin, { status: 'pending_verification', createdBy: 'x' }, 'draft', ''), /reason is required/)
+  assert.equal(g.transitionProblem(admin, { status: 'pending_verification', createdBy: 'x' }, 'draft', 'Licence copy unreadable'), null)
+  assert.match(g.transitionProblem({ uid: 'x', role: 'super_admin' }, { status: 'pending_verification', createdBy: 'x' }, 'approved'), /created this supplier cannot approve/)
+})

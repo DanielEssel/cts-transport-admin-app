@@ -171,6 +171,11 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [openSection, setOpenSection] = useState<string>("platform");
+  // A link such as /settings#gas (from Gas Configuration) opens that section.
+  useEffect(() => {
+    const h = window.location.hash.slice(1);
+    if (["platform", "okada", "taxi", "pragyia", "delivery", "gas", "services"].includes(h)) setOpenSection(h);
+  }, []);
 
   useEffect(() => {
     const load = async () => {

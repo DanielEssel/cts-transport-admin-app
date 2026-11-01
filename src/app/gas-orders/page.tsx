@@ -5,6 +5,7 @@ import { db } from '@/lib/firebase'
 import { GasOrder } from '@/types'
 import { StatusBadge, EmptyState, TableSkeleton, StatsCard } from '@/components/shared'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import Link from 'next/link'
 import { Flame, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { GasFilter, matchesGasFilter } from '@/lib/gas-order-filters'
@@ -53,8 +54,11 @@ export default function GasOrdersPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div>
-        <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)' }}>Gas Orders</h1>
-        <p style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>{orders.length} gas cylinder orders</p>
+        <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)' }}>Direct Gas Orders</h1>
+        <p style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>
+          The older direct Gas flow, priced from Settings and fulfilled by CTSGo drivers, with no supplier. Showing the latest {orders.length} (up to 200).
+          Orders placed with suppliers are under <Link href="/gas-supplier-orders" style={{ color: 'var(--accent-text)' }}>Supplier Gas Orders</Link>.
+        </p>
       </div>
 
       {/* Mini stats */}

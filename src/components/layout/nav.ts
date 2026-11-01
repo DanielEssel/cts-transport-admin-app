@@ -5,7 +5,7 @@
 import type { LucideIcon } from 'lucide-react'
 import {
   LayoutDashboard, Users, UserCheck, Car, Package, Flame, Factory, Truck, Scale,
-  Wallet, BookOpen, Tag, Bell, MapPin, Headphones, ClipboardList, Settings,
+  Wallet, BookOpen, Tag, Bell, MapPin, Headphones, ClipboardList, Settings, Gauge, SlidersHorizontal,
 } from 'lucide-react'
 
 export interface NavLink { href: string; icon: LucideIcon; label: string }
@@ -25,11 +25,16 @@ export const NAV_GROUPS: NavGroup[] = [
     { href: '/deliveries', icon: Package, label: 'Deliveries' },
     { href: '/support', icon: Headphones, label: 'Support' },
   ] },
+  // Governance first, then supplier orders (the main operational flow), the
+  // older direct Gas orders, money, and platform configuration.
   { label: 'Gas', links: [
-    { href: '/gas-orders', icon: Flame, label: 'Gas Orders' },
-    { href: '/gas-suppliers', icon: Factory, label: 'Gas Suppliers' },
-    { href: '/gas-supplier-orders', icon: Truck, label: 'Supplier Orders' },
+    { href: '/gas', icon: Gauge, label: 'Gas Overview' },
+    { href: '/gas-suppliers', icon: Factory, label: 'Suppliers' },
+    { href: '/gas-supplier-orders', icon: Truck, label: 'Supplier Gas Orders' },
+    { href: '/gas-orders', icon: Flame, label: 'Direct Gas Orders' },
     { href: '/gas-settlement', icon: Scale, label: 'Gas Settlement' },
+    { href: '/gas-supplier-payouts', icon: Wallet, label: 'Supplier Payouts' },
+    { href: '/gas-configuration', icon: SlidersHorizontal, label: 'Gas Configuration' },
   ] },
   { label: 'Finance', links: [
     { href: '/withdrawals', icon: Wallet, label: 'Withdrawals' },

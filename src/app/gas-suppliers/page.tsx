@@ -5,18 +5,17 @@ import { useRouter } from 'next/navigation'
 import { ClipboardCheck, Factory, Plus, Search, RefreshCw } from 'lucide-react'
 import { EmptyState, StatsCard, StatusBadge, TableSkeleton } from '@/components/shared'
 import { formatDateShort } from '@/lib/utils'
-import { label, type Supplier, type SupplierStatus } from '@/lib/gas-suppliers'
+import { label, type Supplier } from '@/lib/gas-suppliers'
+import { SUPPLIER_GROUPS, SUPPLIER_GROUP_LABELS, supplierGroup, toMillis, waitingFor, type SupplierGroup } from '@/lib/gas-admin'
 import { countStations, listSuppliers } from '@/lib/gas-supplier-data'
 import { SupplierForm } from '@/components/features/gas-suppliers/SupplierForm'
-import { Notice, OrdersBadge, buttonStyle } from '@/components/features/gas-suppliers/ui'
+import { Notice, OrdersBadge, buttonStyle, inputStyle } from '@/components/features/gas-suppliers/ui'
 import { gasLoadError } from '@/lib/gas-supplier-ops'
 import { SupplierReview } from '@/components/features/gas-suppliers/SupplierReview'
 import { useAuth } from '@/lib/auth-context'
 
 type Row = Supplier & { stationCount: number | null }
 
-// Tabs in working order: the review queue first.
-const STATUS_TABS = ['all', 'pending_verification', 'draft', 'approved', 'rejected', 'suspended'] as const
 
 export default function GasSuppliersPage() {
   const router = useRouter()
@@ -25,7 +24,8 @@ export default function GasSuppliersPage() {
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [status, setStatus] = useState<SupplierStatus | 'all'>('all')
+  const [group, setGroup] = useState<SupplierGroup | 'all'>('all')
+  const [orders, setOrders] = useState<'any' | 'on' | 'off'>('any')
   const [creating, setCreating] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -45,15 +45,27 @@ export default function GasSuppliersPage() {
 
   useEffect(() => { load() }, [load])
 
+  // Links from the Gas overview: ?group=applications, ?review=<supplierId>.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search)
+    const g = p.get('group')
+    if (g && (SUPPLIER_GROUPS as readonly string[]).includes(g)) setGroup(g as SupplierGroup)
+    if (p.get('review')) setReviewing(p.get('review'))
+  }, [])
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    return rows.filter((s) => (status === 'all' || s.status === status) && (!q || [
+    return rows.filter((s) => (group === 'all' || supplierGroup(s) === group)
+      && (orders === 'any' || (orders === 'on') === (s.ordersEnabled === true)) && (!q || [
       s.id, s.legalName, s.tradingName, s.contact?.name, s.contact?.phone, s.contact?.email,
     ].some((v) => v?.toLowerCase().includes(q))))
-  }, [rows, search, status])
+  }, [rows, search, group, orders])
 
-  const count = (st: SupplierStatus) => rows.filter((s) => s.status === st).length
-  const queue = useMemo(() => rows.filter((s) => s.status === 'pending_verification'), [rows])
+  const count = (g: SupplierGroup) => rows.filter((s) => supplierGroup(s) === g).length
+  // The review queue, longest waiting first.
+  const queue = useMemo(() => rows.filter((s) => s.status === 'pending_verification')
+    .sort((a, b) => (toMillis(a.statusChangedAt) ?? 0) - (toMillis(b.statusChangedAt) ?? 0)), [rows])
+  const now = Date.now()
   const reviewed = rows.find((s) => s.id === reviewing) ?? null
   const queueIndex = reviewed ? queue.findIndex((s) => s.id === reviewed.id) : -1
 
@@ -78,22 +90,27 @@ export default function GasSuppliersPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
         <StatsCard title="Suppliers" value={rows.length} icon={<Factory size={16} />} iconColor="#fb923c" iconBg="rgba(249,115,22,0.12)" loading={loading} />
-        <StatsCard title="Awaiting verification" value={count('pending_verification')} icon={<Factory size={16} />} iconColor="var(--tone-warning-fg)" iconBg="rgba(234,179,8,0.12)" loading={loading} />
+        <StatsCard title="Awaiting approval" value={count('applications')} icon={<Factory size={16} />} iconColor="var(--tone-warning-fg)" iconBg="rgba(234,179,8,0.12)" loading={loading} />
         <StatsCard title="Approved" value={count('approved')} icon={<Factory size={16} />} iconColor="var(--accent-text)" iconBg="rgba(22,163,74,0.12)" loading={loading} />
         <StatsCard title="Taking orders" value={rows.filter((s) => s.ordersEnabled).length} icon={<Factory size={16} />} iconColor="var(--tone-info-fg)" iconBg="rgba(96,165,250,0.12)" loading={loading} />
       </div>
 
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
         <div className="segmented" role="group" aria-label="Filter by status" style={{ flexWrap: 'wrap' }}>
-          {STATUS_TABS.map((st) => (
-            <button key={st} onClick={() => setStatus(st)} aria-pressed={status === st}>
-              {st === 'all' ? 'All' : label(st)}{' '}
-              <span style={{ fontWeight: 700, color: st === 'pending_verification' && count(st) > 0 ? 'var(--tone-warning-fg)' : 'var(--text-tertiary)' }}>
-                {st === 'all' ? rows.length : count(st)}
+          {(['all', ...SUPPLIER_GROUPS] as const).map((g) => (
+            <button key={g} onClick={() => setGroup(g)} aria-pressed={group === g}>
+              {g === 'all' ? 'All' : SUPPLIER_GROUP_LABELS[g]}{' '}
+              <span style={{ fontWeight: 700, color: (g === 'applications' || g === 'corrections') && count(g) > 0 ? 'var(--tone-warning-fg)' : 'var(--text-tertiary)' }}>
+                {g === 'all' ? rows.length : count(g)}
               </span>
             </button>
           ))}
         </div>
+        <select aria-label="Orders" value={orders} onChange={(e) => setOrders(e.target.value as typeof orders)} style={{ ...inputStyle, width: 'auto' }}>
+          <option value="any">Orders on or off</option>
+          <option value="on">Orders on</option>
+          <option value="off">Orders off</option>
+        </select>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--surface-alt)', border: '1px solid var(--border)', borderRadius: '8px', padding: '7px 12px' }}>
           <Search size={13} style={{ color: 'var(--text-tertiary)' }} />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, contact, ID…"
@@ -107,7 +124,8 @@ export default function GasSuppliersPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', padding: '12px 16px', borderRadius: 'var(--radius-card)', background: 'var(--tone-warning-bg)', border: '1px solid var(--border)' }}>
           <ClipboardCheck size={18} color="var(--tone-warning-fg)" />
           <div style={{ flex: 1, minWidth: '200px', fontSize: '13px', color: 'var(--tone-warning-fg)', fontWeight: 600 }}>
-            {queue.length} {queue.length === 1 ? 'supplier is' : 'suppliers are'} awaiting verification.
+            {queue.length} {queue.length === 1 ? 'application is' : 'applications are'} awaiting approval
+            {waitingFor(queue[0].statusChangedAt, now) && <span style={{ fontWeight: 500 }}> · oldest waiting {waitingFor(queue[0].statusChangedAt, now)}</span>}.
           </div>
           <button className="btn btn-primary" onClick={() => setReviewing(queue[0].id)}>Start review</button>
         </div>
@@ -145,7 +163,17 @@ export default function GasSuppliersPage() {
                         <div style={{ color: 'var(--text-tertiary)' }}>{[s.contact?.phone, s.contact?.email].filter(Boolean).join(' · ') || '—'}</div>
                       </td>
                       <td>{s.stationCount ?? '—'}</td>
-                      <td><StatusBadge status={s.status} /></td>
+                      <td>
+                        <StatusBadge status={s.status} />
+                        {s.status === 'pending_verification' && waitingFor(s.statusChangedAt, now) && (
+                          <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '3px' }}>Waiting {waitingFor(s.statusChangedAt, now)}</div>
+                        )}
+                        {supplierGroup(s) === 'corrections' && (
+                          <div title={s.statusReason ?? undefined} style={{ fontSize: '11px', color: 'var(--tone-warning-fg)', marginTop: '3px', maxWidth: '220px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            Returned: {s.statusReason}
+                          </div>
+                        )}
+                      </td>
                       <td><OrdersBadge on={s.ordersEnabled} /></td>
                       <td style={{ fontSize: '11px' }}>{formatDateShort(s.createdAt)}</td>
                       <td style={{ fontSize: '11px' }}>{formatDateShort(s.updatedAt)}</td>
@@ -166,7 +194,7 @@ export default function GasSuppliersPage() {
 
       {reviewed && admin && (
         <SupplierReview supplier={reviewed} stationCount={reviewed.stationCount} admin={admin}
-          position={queueIndex >= 0 ? `${queueIndex + 1} of ${queue.length} awaiting verification` : undefined}
+          position={queueIndex >= 0 ? `${queueIndex + 1} of ${queue.length} awaiting approval` : undefined}
           onClose={() => setReviewing(null)} onChanged={afterDecision} />
       )}
 

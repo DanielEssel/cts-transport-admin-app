@@ -229,7 +229,8 @@ export const SETTLEMENT_STAGE_LABELS: Record<SettlementStage, string> = {
  * A driver statement is credited to the CTSGo wallet, never paid out (stored as paid + driver_wallet,
  * gas_supplier_payouts.js). Whatever the method says, a paid driver statement is never a payout.
  */
-const isWalletCredit = (party?: string | null, _method?: string | null) => party === 'driver'
+// A driver statement is always a wallet credit; a supplier statement is one when credited to the supplier wallet (gas_supplier_wallet.js).
+const isWalletCredit = (party?: string | null, method?: string | null) => party === 'driver' || (party === 'supplier' && method === 'supplier_wallet')
 
 export function settlementStage(
   entry: { kind: string },
@@ -248,11 +249,12 @@ export function settlementStage(
 
 /** A statement's payout status for display; anything unknown is not started. */
 export function payoutStatusLabel(s: string | null | undefined, party?: string | null, method?: string | null): string {
-  if (s === 'paid') return isWalletCredit(party, method) ? 'Credited to CTSGo wallet' : 'Payout completed'
+  if (s === 'paid') return isWalletCredit(party, method) ? (party === 'supplier' ? 'Credited to supplier wallet' : 'Credited to CTSGo wallet') : 'Payout completed'
   if (s === 'not_required') return 'Nothing to pay'
-  if (s === 'payout_in_progress') return 'Payout approved (in progress)'
-  if (s === 'failed') return 'Payout failed (can be sent again)'
-  return 'Not started'
+  // Supplier statements are no longer paid by Mobile Money one by one; one still in progress is from the removed statement payout.
+  if (s === 'payout_in_progress') return party === 'supplier' ? 'Old statement payout in progress (needs review)' : 'Payout approved (in progress)'
+  if (s === 'failed') return party === 'supplier' ? 'Old statement payout failed · credited to the wallet at the next withdrawal' : 'Payout failed (can be sent again)'
+  return party === 'supplier' ? 'Not started · credited to the wallet at the next withdrawal' : 'Not started'
 }
 
 /** What happened to the current Mobile Money attempt, for display. */
@@ -266,19 +268,20 @@ export const PAYOUT_OUTCOME_LABELS: Record<string, string> = {
   confirmed_failed: 'Confirmed not paid',
 }
 
-export type StatementPayoutAction = 'send_mobile_money' | 'record_result' | 'credit_driver_wallet'
+export type StatementPayoutAction = 'credit_driver_wallet' | 'review_old_supplier_payout'
 
 /**
  * The payout action a super admin may take on a statement, as the server
- * allows it (gas_supplier_payouts.js), or null. Commission statements and
- * statements with nothing to pay offer none.
+ * allows it (gas_supplier_payouts.js), or null. Supplier statements are
+ * credited to the supplier wallet by the supplier's own withdrawal
+ * (gas_supplier_wallet.js), so they offer no action; one left in progress by
+ * the removed statement Mobile Money payout needs review, with no dashboard
+ * action (it must never be sent again). Commission statements and statements
+ * with nothing to pay offer none.
  */
 export function statementPayoutAction(s: { party?: string; status?: string; netPesewas?: unknown; payoutStatus?: string; payout?: { outcome?: string } | null }): StatementPayoutAction | null {
   const payable = s.status === 'prepared' && isPesewas(s.netPesewas) && (s.netPesewas as number) > 0
-  if (s.party === 'supplier') {
-    if (s.payoutStatus === 'payout_in_progress') return s.payout?.outcome === 'sent' || s.payout?.outcome === 'unknown' ? 'record_result' : null
-    return payable && (s.payoutStatus === 'not_started' || s.payoutStatus === 'failed') ? 'send_mobile_money' : null
-  }
+  if (s.party === 'supplier') return s.payoutStatus === 'payout_in_progress' ? 'review_old_supplier_payout' : null
   if (s.party === 'driver') return payable && s.payoutStatus === 'not_started' ? 'credit_driver_wallet' : null
   return null
 }
@@ -616,4 +619,18 @@ export function gasLoadError(e: unknown, collections: string, what: string): str
     return `Permission denied reading ${collections}. The Firestore rules deployed in production have no rule for ${what}, so every client read is refused; the Gas rules candidate (ctsgo-gas-supplier-portal/rules-candidate) adds read access for active admins. If those rules are deployed, check that your admins record is still active.`
   }
   return `Could not load ${what}: ${err?.code || err?.message || String(e)}`
+}
+
+/** Settlement work waiting for an admin, counted with the settlement page's own rules. No amounts are computed. */
+export function settlementQueue(
+  statements: ReadonlyArray<Parameters<typeof statementPayoutAction>[0]>,
+  debts: ReadonlyArray<{ status?: string }>,
+) {
+  const actions = statements.map(statementPayoutAction)
+  return {
+    oldSupplierPayoutsToReview: actions.filter((a) => a === 'review_old_supplier_payout').length,
+    driverStatementsToCredit: actions.filter((a) => a === 'credit_driver_wallet').length,
+    // Open as the settlement page loads them: outstanding, or with a resolution awaiting a second admin.
+    openDebts: debts.filter((d) => d.status === 'outstanding' || d.status === 'resolution_proposed').length,
+  }
 }
