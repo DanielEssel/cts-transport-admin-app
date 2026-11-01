@@ -9,6 +9,10 @@
 //   - Google rejects the key (window.gm_authFailure: a referrer, API or
 //     billing restriction). The exact reason is in the browser console as
 //     e.g. RefererNotAllowedMapError; the key itself is never logged here.
+//
+// Diagnostics: the console says which variable the key came from and a short
+// SHA-256 fingerprint of it, so the built-in key can be compared with the
+// intended one (printf %s "$KEY" | sha256sum | cut -c1-8) without showing it.
 
 export type MapsFailure = 'missing_key' | 'load_failed' | 'timeout' | 'auth_failed'
 
@@ -42,6 +46,27 @@ declare global {
   }
 }
 
+export const MAPS_KEY_SOURCE = 'NEXT_PUBLIC_MAPS_API_KEY'
+
+/** First 8 hex digits of the key's SHA-256; never the key itself. */
+export async function keyFingerprint(key: string): Promise<string> {
+  try {
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key))
+    return Array.from(new Uint8Array(digest).slice(0, 4), (b) => b.toString(16).padStart(2, '0')).join('')
+  } catch {
+    return 'unavailable'
+  }
+}
+
+function logKeyState(level: 'info' | 'error', what: string, key: string) {
+  const env = process.env.NEXT_PUBLIC_VERCEL_ENV
+  const commit = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA
+  void keyFingerprint(key).then((fp) => {
+    console[level](`[maps] ${what}. Key from ${MAPS_KEY_SOURCE} (fingerprint sha256:${fp}), origin ${window.location.origin}` +
+      (env ? `, build ${env}` : '') + (commit ? ` @ ${commit.slice(0, 7)}` : '') + '.')
+  })
+}
+
 /** Called (now and later) when Google rejects the key; returns an unsubscribe. */
 export function onMapsAuthFailure(fn: () => void): () => void {
   if (authFailed) fn()
@@ -54,9 +79,15 @@ export function loadGoogleMaps(apiKey: string | undefined = process.env.NEXT_PUB
   if (authFailed) return Promise.reject(new MapsLoadError('auth_failed'))
   if (window.google?.maps?.Map) return Promise.resolve(window.google.maps)
   if (loading) return loading
-  if (!apiKey || !apiKey.trim()) return Promise.reject(new MapsLoadError('missing_key'))
+  if (!apiKey || !apiKey.trim()) {
+    console.error(`[maps] ${MAPS_KEY_SOURCE} was not set when this build was made.`)
+    return Promise.reject(new MapsLoadError('missing_key'))
+  }
+  const key = apiKey.trim()
+  logKeyState('info', 'Loading Google Maps', key)
 
   window.gm_authFailure = () => {
+    logKeyState('error', 'Google rejected the Maps key for this origin', key)
     authFailed = true
     authListeners.forEach((fn) => fn())
   }
@@ -72,7 +103,7 @@ export function loadGoogleMaps(apiKey: string | undefined = process.env.NEXT_PUB
     const cleanup = () => { window.clearTimeout(timer); delete window[CALLBACK] }
     window[CALLBACK] = () => { cleanup(); resolve(window.google.maps) }
 
-    const params = new URLSearchParams({ key: apiKey.trim(), callback: CALLBACK, loading: 'async', v: 'weekly' })
+    const params = new URLSearchParams({ key, callback: CALLBACK, loading: 'async', v: 'weekly' })
     const script = document.createElement('script')
     script.src = `https://maps.googleapis.com/maps/api/js?${params}`
     script.async = true

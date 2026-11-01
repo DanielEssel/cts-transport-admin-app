@@ -7,3 +7,13 @@ const PENDING_STEPS = new Set(['documentsUploaded', 'pendingApproval', 'document
 export function isPendingDriverApproval(d: { isApproved?: boolean; signupStep?: string | null }): boolean {
   return !d.isApproved && PENDING_STEPS.has(d.signupStep ?? '')
 }
+
+export type DriverAccountStatus = 'suspended' | 'approved' | 'rejected' | 'pending'
+
+/** One status per driver, so the badge and the offered actions never disagree. */
+export function driverAccountStatus(d: { isApproved?: boolean; signupStep?: string | null }): DriverAccountStatus {
+  if (d.signupStep === 'suspended') return 'suspended'
+  if (d.isApproved) return 'approved'
+  if (d.signupStep === 'rejected') return 'rejected'
+  return 'pending'
+}

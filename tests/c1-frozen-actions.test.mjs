@@ -81,7 +81,7 @@ test('every entry button for a frozen action is disabled with the message', () =
     ['src/app/passengers/page.tsx', 'walletAdjustment', 1],
     ['src/app/trips/page.tsx', 'tripFareOverride', 1],
     ['src/app/drivers/page.tsx', 'driverSuspension', 2],
-    ['src/components/features/DriverDetailModal.tsx', 'driverSuspension', 1],
+    ['src/components/features/DriverDetailModal.tsx', 'driverSuspension', 2], // Suspend, and Unsuspend for a suspended driver
   ]
   for (const [file, action, n] of expected) {
     const src = read(file)

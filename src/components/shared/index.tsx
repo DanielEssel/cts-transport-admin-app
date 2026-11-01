@@ -245,7 +245,7 @@ export function ConfirmDialog({
         <p id="confirm-desc" style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '22px', lineHeight: 1.6 }}>{description}</p>
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           <button autoFocus onClick={onCancel} className="btn btn-secondary">Cancel</button>
-          <button onClick={onConfirm} disabled={loading} className="btn" style={{ background: confirmColor, color: '#fff' }}>
+          <button onClick={onConfirm} disabled={loading} className="btn" style={{ background: confirmColor, color: confirmColor === 'var(--danger)' ? 'var(--on-danger)' : '#fff' }}>
             {loading ? 'Processing…' : confirmLabel}
           </button>
         </div>

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { collection, onSnapshot, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { MAPS_FAILURE_MESSAGE, MapsLoadError, loadGoogleMaps, onMapsAuthFailure, type MapsFailure } from '@/lib/google-maps'
-import { freshnessLabel, locationFreshness, toLatLng } from '@/lib/live-map'
+import { freshnessLabel, locationFreshness, markerName, toLatLng, vehicleMarker, type VehicleMarker } from '@/lib/live-map'
 
 interface LiveDriver {
   uid: string
@@ -50,8 +50,14 @@ const FALLBACK_COLOR = '#94a3b8'
 const serviceColor = (type?: string) =>
   (type && SERVICE_COLORS[type]) || FALLBACK_COLOR
 
-/** First letter for the marker label, safe against missing/empty serviceType. */
-const serviceInitial = (type?: string) => (type?.[0] ?? '?').toUpperCase()
+const MARKER_SIZE = 40
+
+const VEHICLE_LEGEND: { marker: VehicleMarker; label: string }[] = [
+  { marker: 'motorbike', label: 'Okada, delivery, gas' },
+  { marker: 'taxi', label: 'Taxi' },
+  { marker: 'tricycle', label: 'Aboboya' },
+  { marker: 'minitruck', label: 'Mini truck' },
+]
 
 const ACTIVE_TRIP_STATUSES = ['tripAccepted', 'driverArrived', 'tripStarted']
 
@@ -197,27 +203,45 @@ export default function LiveMapPage() {
     placed.forEach(({ d, pos }, uid) => {
       const fresh = locationFreshness(d, now)
       const live = fresh.state === 'live'
-      const icon: google.maps.Symbol = {
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: 10,
-        fillColor: d.currentTripId ? '#f59e0b' : serviceColor(d.serviceType),
-        // A last-known position is drawn faded, so it is never read as live.
-        fillOpacity: live ? 1 : 0.35,
-        strokeColor: live ? '#fff' : '#374151',
-        strokeWeight: 2,
+      const vehicle = vehicleMarker(d.serviceType)
+      // The Passenger App's vehicle image; a plain dot for an unknown service.
+      const icon: google.maps.Icon | google.maps.Symbol = vehicle
+        ? {
+            url: `/markers/${vehicle}.png`,
+            scaledSize: new google.maps.Size(MARKER_SIZE, MARKER_SIZE),
+            anchor: new google.maps.Point(MARKER_SIZE / 2, MARKER_SIZE / 2),
+            labelOrigin: new google.maps.Point(MARKER_SIZE / 2, MARKER_SIZE + 10),
+          }
+        : {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 10,
+            fillColor: FALLBACK_COLOR,
+            fillOpacity: 1,
+            strokeColor: '#fff',
+            strokeWeight: 2,
+            labelOrigin: new google.maps.Point(0, 2.8),
+          }
+      // The name tag under the vehicle: amber while on a trip.
+      const label: google.maps.MarkerLabel = {
+        text: markerName(driverName(d)),
+        className: d.currentTripId ? 'livemap-tag livemap-tag--trip' : 'livemap-tag',
+        color: d.currentTripId ? '#1f2937' : 'var(--text-primary)',
+        fontSize: '11px',
+        fontWeight: '600',
       }
+      // A last-known position is drawn faded, so it is never read as live.
+      const opacity = live ? 1 : 0.45
       const title = `${driverName(d)} · ${freshnessLabel(fresh)}`
       const existing = markers.current[uid]
       if (existing) {
         existing.setPosition(pos)
         existing.setIcon(icon)
+        existing.setLabel(label)
+        existing.setOpacity(opacity)
         existing.setTitle(title)
         return
       }
-      const marker = new google.maps.Marker({
-        position: pos, map, title, icon,
-        label: { text: serviceInitial(d.serviceType), color: '#fff', fontSize: '10px', fontWeight: 'bold' },
-      })
+      const marker = new google.maps.Marker({ position: pos, map, title, icon, label, opacity })
       marker.addListener('click', () => setSelectedUid(uid))
       markers.current[uid] = marker
     })
@@ -379,23 +403,11 @@ export default function LiveMapPage() {
               gap: '6px',
             }}
           >
-            {Object.entries(SERVICE_COLORS).map(([type, color]) => (
-              <div
-                key={type}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                }}
-              >
-                <div
-                  style={{ width: '10px', height: '10px', borderRadius: '50%', background: color }}
-                />
-                <span style={{ color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
-                  {type}
-                </span>
+            {VEHICLE_LEGEND.map(v => (
+              <div key={v.marker} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', fontWeight: 600 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={`/markers/${v.marker}.png`} alt="" width={20} height={20} />
+                <span style={{ color: 'var(--text-secondary)' }}>{v.label}</span>
               </div>
             ))}
             <div
@@ -410,13 +422,12 @@ export default function LiveMapPage() {
                 marginTop: '2px',
               }}
             >
-              <div
-                style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f59e0b' }}
-              />
+              <span className="livemap-tag livemap-tag--trip" style={{ fontSize: '10px', fontWeight: 600 }}>Name</span>
               <span style={{ color: 'var(--text-secondary)' }}>On Trip</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', fontWeight: 600 }}>
-              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'rgba(148,163,184,0.35)', border: '2px solid #374151' }} />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/markers/motorbike.png" alt="" width={20} height={20} style={{ opacity: 0.45 }} />
               <span style={{ color: 'var(--text-secondary)' }}>Last known (not live)</span>
             </div>
             {unplaced > 0 && (
@@ -707,6 +718,8 @@ export default function LiveMapPage() {
           .livemap-side { overflow: visible !important; }
           .livemap-page { height: auto !important; }
         }
+        .livemap-tag { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.25); }
+        .livemap-tag--trip { background: #fbbf24; border-color: #d97706; color: #1f2937; }
         @keyframes livemap-spin { to { transform: rotate(360deg); } }
         @keyframes livemap-pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.4 } }
       `}</style>
