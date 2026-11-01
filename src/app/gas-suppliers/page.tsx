@@ -2,19 +2,26 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Factory, Plus, Search, RefreshCw } from 'lucide-react'
+import { ClipboardCheck, Factory, Plus, Search, RefreshCw } from 'lucide-react'
 import { EmptyState, StatsCard, StatusBadge, TableSkeleton } from '@/components/shared'
 import { formatDateShort } from '@/lib/utils'
-import { SUPPLIER_STATUSES, label, type Supplier, type SupplierStatus } from '@/lib/gas-suppliers'
+import { label, type Supplier, type SupplierStatus } from '@/lib/gas-suppliers'
 import { countStations, listSuppliers } from '@/lib/gas-supplier-data'
 import { SupplierForm } from '@/components/features/gas-suppliers/SupplierForm'
 import { Notice, OrdersBadge, buttonStyle } from '@/components/features/gas-suppliers/ui'
 import { gasLoadError } from '@/lib/gas-supplier-ops'
+import { SupplierReview } from '@/components/features/gas-suppliers/SupplierReview'
+import { useAuth } from '@/lib/auth-context'
 
 type Row = Supplier & { stationCount: number | null }
 
+// Tabs in working order: the review queue first.
+const STATUS_TABS = ['all', 'pending_verification', 'draft', 'approved', 'rejected', 'suspended'] as const
+
 export default function GasSuppliersPage() {
   const router = useRouter()
+  const { admin } = useAuth()
+  const [reviewing, setReviewing] = useState<string | null>(null)
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -46,6 +53,17 @@ export default function GasSuppliersPage() {
   }, [rows, search, status])
 
   const count = (st: SupplierStatus) => rows.filter((s) => s.status === st).length
+  const queue = useMemo(() => rows.filter((s) => s.status === 'pending_verification'), [rows])
+  const reviewed = rows.find((s) => s.id === reviewing) ?? null
+  const queueIndex = reviewed ? queue.findIndex((s) => s.id === reviewed.id) : -1
+
+  // After a decision in the review queue, move to the next supplier still
+  // awaiting verification; a quick view simply closes.
+  const afterDecision = async () => {
+    const next = queueIndex >= 0 ? queue.find((s) => s.id !== reviewing)?.id ?? null : null
+    await load()
+    setReviewing(next)
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -66,14 +84,16 @@ export default function GasSuppliersPage() {
       </div>
 
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-        {(['all', ...SUPPLIER_STATUSES] as const).map((st) => (
-          <button key={st} onClick={() => setStatus(st)} style={{
-            padding: '7px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 600,
-            background: status === st ? 'var(--primary-dark)' : 'var(--surface-alt)', color: status === st ? '#fff' : 'var(--text-secondary)',
-          }}>
-            {st === 'all' ? 'All' : label(st)} <span style={{ opacity: 0.7 }}>({st === 'all' ? rows.length : count(st)})</span>
-          </button>
-        ))}
+        <div className="segmented" role="group" aria-label="Filter by status" style={{ flexWrap: 'wrap' }}>
+          {STATUS_TABS.map((st) => (
+            <button key={st} onClick={() => setStatus(st)} aria-pressed={status === st}>
+              {st === 'all' ? 'All' : label(st)}{' '}
+              <span style={{ fontWeight: 700, color: st === 'pending_verification' && count(st) > 0 ? 'var(--tone-warning-fg)' : 'var(--text-tertiary)' }}>
+                {st === 'all' ? rows.length : count(st)}
+              </span>
+            </button>
+          ))}
+        </div>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--surface-alt)', border: '1px solid var(--border)', borderRadius: '8px', padding: '7px 12px' }}>
           <Search size={13} style={{ color: 'var(--text-tertiary)' }} />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, contact, ID…"
@@ -82,6 +102,16 @@ export default function GasSuppliersPage() {
       </div>
 
       {loadError && <Notice tone="danger">{loadError}</Notice>}
+
+      {!loading && queue.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', padding: '12px 16px', borderRadius: 'var(--radius-card)', background: 'var(--tone-warning-bg)', border: '1px solid var(--border)' }}>
+          <ClipboardCheck size={18} color="var(--tone-warning-fg)" />
+          <div style={{ flex: 1, minWidth: '200px', fontSize: '13px', color: 'var(--tone-warning-fg)', fontWeight: 600 }}>
+            {queue.length} {queue.length === 1 ? 'supplier is' : 'suppliers are'} awaiting verification.
+          </div>
+          <button className="btn btn-primary" onClick={() => setReviewing(queue[0].id)}>Start review</button>
+        </div>
+      )}
 
       {loading ? <TableSkeleton rows={6} cols={7} /> : loadError ? null : (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', overflow: 'hidden' }}>
@@ -94,7 +124,7 @@ export default function GasSuppliersPage() {
                 <thead>
                   <tr>
                     <th>Supplier</th><th>Operating model</th><th>Contact</th><th>Stations</th>
-                    <th>Status</th><th>Orders</th><th>Created</th><th>Updated</th>
+                    <th>Status</th><th>Orders</th><th>Created</th><th>Updated</th><th aria-label="Actions" />
                   </tr>
                 </thead>
                 <tbody>
@@ -119,6 +149,12 @@ export default function GasSuppliersPage() {
                       <td><OrdersBadge on={s.ordersEnabled} /></td>
                       <td style={{ fontSize: '11px' }}>{formatDateShort(s.createdAt)}</td>
                       <td style={{ fontSize: '11px' }}>{formatDateShort(s.updatedAt)}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <button onClick={(e) => { e.stopPropagation(); setReviewing(s.id) }}
+                          className={`btn ${s.status === 'pending_verification' ? 'btn-primary' : 'btn-secondary'}`} style={{ minHeight: '30px', fontSize: '12px' }}>
+                          {s.status === 'pending_verification' ? 'Review' : 'Quick view'}
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -126,6 +162,12 @@ export default function GasSuppliersPage() {
             </div>
           )}
         </div>
+      )}
+
+      {reviewed && admin && (
+        <SupplierReview supplier={reviewed} stationCount={reviewed.stationCount} admin={admin}
+          position={queueIndex >= 0 ? `${queueIndex + 1} of ${queue.length} awaiting verification` : undefined}
+          onClose={() => setReviewing(null)} onChanged={afterDecision} />
       )}
 
       {creating && (

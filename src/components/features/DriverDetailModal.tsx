@@ -5,6 +5,7 @@ import { StatusBadge, Avatar } from '@/components/shared'
 import { formatDateShort, formatCurrency } from '@/lib/utils'
 import { X, ExternalLink, CheckCircle, XCircle, FileText, User, Car, Star } from 'lucide-react'
 import { FROZEN_ACTION_MESSAGE, isFrozen, frozenButtonStyle } from '@/lib/frozen-actions'
+import { driverAccountStatus } from '@/lib/driver-status'
 
 interface DriverDetailModalProps {
   driver: Driver
@@ -12,6 +13,7 @@ interface DriverDetailModalProps {
   onApprove: () => void
   onReject: () => void
   onSuspend: () => void
+  onUnsuspend: () => void
 }
 
 const DOC_LABELS: Record<string, string> = {
@@ -26,7 +28,9 @@ const DOC_LABELS: Record<string, string> = {
   vehicle_photo_side:     'Vehicle Side Photo',
 }
 
-export function DriverDetailModal({ driver, onClose, onApprove, onReject, onSuspend }: DriverDetailModalProps) {
+export function DriverDetailModal({ driver, onClose, onApprove, onReject, onSuspend, onUnsuspend }: DriverDetailModalProps) {
+  const accountStatus = driverAccountStatus(driver)
+  const frozen = isFrozen('driverSuspension')
   const [activeTab, setActiveTab] = useState<'info' | 'documents' | 'stats'>('documents')
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
 
@@ -81,10 +85,7 @@ export function DriverDetailModal({ driver, onClose, onApprove, onReject, onSusp
                 }}>
                   {driver.displayName}
                 </h2>
-                <StatusBadge status={
-                  driver.signupStep === 'suspended' ? 'suspended'
-                  : driver.isApproved ? 'approved' : 'pending'
-                } />
+                <StatusBadge status={accountStatus} />
               </div>
               <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: 'var(--text-tertiary)' }}>
                 <span>{driver.phone}</span>
@@ -339,35 +340,32 @@ export function DriverDetailModal({ driver, onClose, onApprove, onReject, onSusp
             </div>
           )}
 
-          {driver.isApproved && (
+          {(accountStatus === 'approved' || accountStatus === 'suspended') && (
             <div style={{
-              padding: '16px 24px', borderTop: '1px solid var(--border)',
-              display: 'flex', gap: '10px', justifyContent: 'flex-end',
+              padding: '14px 24px', borderTop: '1px solid var(--border)',
+              display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap',
               background: 'var(--surface)', flexShrink: 0
             }}>
-              <button onClick={onClose} style={{
-                padding: '10px 20px', borderRadius: '10px', border: '1px solid var(--border)',
-                background: 'none', color: 'var(--text-secondary)',
-                cursor: 'pointer', fontSize: '13px', fontWeight: 600
-              }}>
-                Close
-              </button>
-              {isFrozen('driverSuspension') && (
-                <span style={{ alignSelf: 'center', fontSize: '12px', color: 'var(--text-tertiary)', marginRight: 'auto' }}>
-                  {FROZEN_ACTION_MESSAGE}
-                </span>
+              <div style={{ flex: '1 1 220px', fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                {accountStatus === 'suspended'
+                  ? <><b style={{ color: 'var(--tone-danger-fg)' }}>Suspended.</b> This driver cannot go online or accept trips.</>
+                  : <><b style={{ color: 'var(--accent-text)' }}>Active.</b> Approved to go online and accept trips.</>}
+                {frozen && <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Suspend and unsuspend: {FROZEN_ACTION_MESSAGE}</div>}
+              </div>
+              <button onClick={onClose} className="btn btn-secondary">Close</button>
+              {accountStatus === 'suspended' ? (
+                <button onClick={() => { onUnsuspend(); onClose() }} disabled={isFrozen('driverSuspension')}
+                  title={isFrozen('driverSuspension') ? FROZEN_ACTION_MESSAGE : undefined}
+                  className="btn btn-primary" style={frozen ? frozenButtonStyle : undefined}>
+                  Unsuspend Driver
+                </button>
+              ) : (
+                <button onClick={() => { onSuspend(); onClose() }} disabled={isFrozen('driverSuspension')}
+                  title={isFrozen('driverSuspension') ? FROZEN_ACTION_MESSAGE : undefined}
+                  className="btn btn-danger" style={frozen ? frozenButtonStyle : undefined}>
+                  Suspend Driver
+                </button>
               )}
-              <button onClick={() => { onSuspend(); onClose() }}
-                disabled={isFrozen('driverSuspension')}
-                title={isFrozen('driverSuspension') ? FROZEN_ACTION_MESSAGE : undefined}
-                style={{
-                padding: '10px 20px', borderRadius: '10px', border: 'none',
-                background: 'rgba(234,179,8,0.12)', color: 'var(--tone-warning-fg)',
-                cursor: 'pointer', fontSize: '13px', fontWeight: 700,
-                ...(isFrozen('driverSuspension') ? frozenButtonStyle : {})
-              }}>
-                Suspend Driver
-              </button>
             </div>
           )}
         </div>

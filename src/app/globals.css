@@ -61,7 +61,7 @@
   --tone-info-bg:    #dbeafe; --tone-info-fg:    #1e40af;
   --tone-neutral-bg: #eef2ef; --tone-neutral-fg: #3f4a43;
   --tone-violet-bg:  #ede9fe; --tone-violet-fg:  #5b21b6;
-  --danger: #dc2626;
+  --danger: #dc2626; --on-danger: #fff;
 
   /* Charts: series colours, colour-blind distinguishable */
   --chart-1: #16a34a; --chart-2: #0284c7; --chart-3: #d97706; --chart-4: #7c3aed;
@@ -97,7 +97,7 @@
   --tone-info-bg:    rgba(59,130,246,0.16); --tone-info-fg:    #93c5fd;
   --tone-neutral-bg: #26332c;               --tone-neutral-fg: #c5cfc8;
   --tone-violet-bg:  rgba(139,92,246,0.18); --tone-violet-fg:  #c4b5fd;
-  --danger: #f87171;
+  --danger: #f87171; --on-danger: #2a0707;
   --chart-grid: #26332c;
 }
 
@@ -176,13 +176,50 @@ h1, h2, h3, h4, h5, h6 {
 .btn-primary:hover { background: var(--primary-hover); }
 .btn-secondary { background: var(--surface); color: var(--text-secondary); border-color: var(--border); }
 .btn-secondary:hover { background: var(--surface-alt); }
-.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger { background: var(--danger); color: var(--on-danger); }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* Segmented filter (date ranges, tabs) */
 .segmented { display: inline-flex; padding: 3px; gap: 2px; background: var(--surface-alt); border: 1px solid var(--border); border-radius: var(--radius-control); }
 .segmented button { border: 0; background: none; padding: 5px 12px; border-radius: 8px; font-size: 12.5px; font-weight: 600; color: var(--text-secondary); cursor: pointer; }
 .segmented button[aria-pressed="true"] { background: var(--surface); color: var(--text-primary); box-shadow: var(--card-shadow); }
+
+/* Workspace pages (Gas supplier detail): compact sticky header and tabs.
+   Offsets match .shell-main's padding so the bar sits flush under the top bar. */
+.sw-sticky {
+  position: sticky; top: -24px; z-index: 6; margin: -24px -24px 0; padding: 16px 24px 0;
+  background: var(--bg); border-bottom: 1px solid var(--border);
+}
+.sw-tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; margin-bottom: -1px; }
+.sw-tabs::-webkit-scrollbar { display: none; }
+.sw-tab {
+  flex: 0 0 auto; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
+  padding: 10px 14px; border: 0; border-bottom: 2px solid transparent; background: none; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: var(--text-tertiary); transition: color 0.15s ease, border-color 0.15s ease;
+}
+.sw-tab:hover { color: var(--text-primary); }
+.sw-tab[aria-selected="true"] { color: var(--accent-text); border-bottom-color: var(--primary); }
+.sw-tab:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; border-radius: 6px; }
+.sw-count { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--surface-alt); color: var(--text-secondary); }
+.sw-tab[aria-selected="true"] .sw-count { background: var(--primary-dim); color: var(--accent-text); }
+.sw-facts {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden;
+}
+.sw-fact { padding: 12px 16px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); margin: 0 -1px -1px 0; }
+.sw-kv { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); }
+.sw-station { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+.sw-station > summary { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; cursor: pointer; list-style: none; }
+.sw-station > summary::-webkit-details-marker { display: none; }
+.sw-station > summary::after { content: '▾'; color: var(--text-tertiary); transition: transform 0.15s ease; }
+.sw-station:not([open]) > summary::after { transform: rotate(-90deg); }
+.sw-actions-inline { display: none; }
+@media (max-width: 767px) {
+  .sw-actions { display: none !important; }
+  .sw-actions-inline { display: block; }
+  .sw-sub { display: none; }
+}
+@media (max-width: 640px) { .sw-sticky { top: -16px; margin: -16px -16px 0; padding: 12px 16px 0; } }
 
 /* Fonts named by older pages that the app never loaded: show Inter. */
 [style*="Syne"], [style*="DM Sans"] { font-family: var(--font-display) !important; }

@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
-import { isPendingDriverApproval } from '@/lib/driver-status'
+import { driverAccountStatus, isPendingDriverApproval } from '@/lib/driver-status'
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 import { db, functions } from '@/lib/firebase'
@@ -25,7 +25,7 @@ export default function DriversPage() {
   const [filter, setFilter] = useState<FilterType>('all')
   const [serviceFilter, setServiceFilter] = useState<ServiceFilter>('all')
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null)
-  const [actionType, setActionType] = useState<'approve' | 'reject' | 'suspend' | null>(null)
+  const [actionType, setActionType] = useState<'approve' | 'reject' | 'suspend' | 'unsuspend' | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
   const [rejectionReasons, setRejectionReasons] = useState<Record<string, string>>({})
   const [viewDriver, setViewDriver] = useState<Driver | null>(null)
@@ -60,7 +60,9 @@ export default function DriversPage() {
       result = result.filter(d =>
         d.displayName?.toLowerCase().includes(q) ||
         d.phone?.includes(q) ||
-        d.email?.toLowerCase().includes(q)
+        d.email?.toLowerCase().includes(q) ||
+        d.vehiclePlate?.toLowerCase().replace(/\s/g, '').includes(q.replace(/\s/g, '')) ||
+        d.uid.toLowerCase().startsWith(q)
       )
     }
     setFiltered(result)
@@ -107,13 +109,18 @@ export default function DriversPage() {
     finally { setActionLoading(false) }
   }
 
-  const handleUnsuspend = async (driver: Driver) => {
+  const handleUnsuspend = async () => {
     if (isFrozen('driverSuspension')) { toast.error(FROZEN_ACTION_MESSAGE); return }
+    const driver = selectedDriver
+    if (!driver) return
+    setActionLoading(true)
     try {
       await updateDoc(doc(db, 'drivers', driver.uid), { signupStep: 'approved', isApproved: true })
       toast.success(`${driver.displayName} unsuspended`)
+      setSelectedDriver(null); setActionType(null)
       loadDrivers()
-    } catch (e: any) { toast.error(e.message) }
+    } catch (e: any) { toast.error(e.message || 'Unsuspend failed') }
+    finally { setActionLoading(false) }
   }
 
   const filterBtns: { key: FilterType; label: string; count: number }[] = [
@@ -173,8 +180,9 @@ export default function DriversPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--surface-alt)', border: '1px solid var(--border)', borderRadius: '8px', padding: '7px 12px' }}>
             <Search size={13} style={{ color: 'var(--text-tertiary)' }} />
             <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search drivers..."
-              style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: '12px', width: '160px' }}
+              placeholder="Name, phone, plate or ID"
+              aria-label="Search drivers by name, phone, email, plate or ID"
+              style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: '12px', width: '170px' }}
             />
           </div>
         </div>
@@ -221,7 +229,7 @@ export default function DriversPage() {
                         </span>
                       </td>
                       <td>
-                        <StatusBadge status={driver.signupStep === 'suspended' ? 'suspended' : driver.isApproved ? 'approved' : 'pending'} />
+                        <StatusBadge status={driverAccountStatus(driver)} />
                       </td>
                       <td>
                         <StatusBadge status={driver.isOnline ? 'online' : 'offline'} />
@@ -262,7 +270,7 @@ export default function DriversPage() {
                             </button>
                           )}
                           {driver.signupStep === 'suspended' && (
-                            <button onClick={() => handleUnsuspend(driver)}
+                            <button onClick={() => { setSelectedDriver(driver); setActionType('unsuspend') }}
                               disabled={isFrozen('driverSuspension')}
                               title={isFrozen('driverSuspension') ? FROZEN_ACTION_MESSAGE : undefined}
                               style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'rgba(22,163,74,0.15)', color: 'var(--accent-text)', cursor: 'pointer', fontSize: '11px', fontWeight: 700, ...(isFrozen('driverSuspension') ? frozenButtonStyle : {}) }}>
@@ -294,10 +302,21 @@ export default function DriversPage() {
       <ConfirmDialog
         open={actionType === 'suspend' && !!selectedDriver}
         title={`Suspend ${selectedDriver?.displayName}?`}
-        description="This driver will be unable to accept any trips or go online."
+        description="This driver will be unable to accept any trips or go online until unsuspended."
         confirmLabel="Suspend Driver"
-        confirmColor="#f59e0b"
+        confirmColor="var(--danger)"
         onConfirm={handleSuspend}
+        onCancel={() => { setSelectedDriver(null); setActionType(null) }}
+        loading={actionLoading}
+      />
+
+      <ConfirmDialog
+        open={actionType === 'unsuspend' && !!selectedDriver}
+        title={`Unsuspend ${selectedDriver?.displayName}?`}
+        description="The driver's account returns to approved, so they can go online and accept trips again."
+        confirmLabel="Unsuspend Driver"
+        confirmColor="var(--primary-dark)"
+        onConfirm={handleUnsuspend}
         onCancel={() => { setSelectedDriver(null); setActionType(null) }}
         loading={actionLoading}
       />
@@ -310,6 +329,7 @@ export default function DriversPage() {
           onApprove={() => { setSelectedDriver(viewDriver); setActionType('approve') }}
           onReject={() => { setSelectedDriver(viewDriver); setActionType('reject') }}
           onSuspend={() => { setSelectedDriver(viewDriver); setActionType('suspend') }}
+          onUnsuspend={() => { setSelectedDriver(viewDriver); setActionType('unsuspend') }}
         />
       )}
 
