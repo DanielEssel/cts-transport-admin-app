@@ -8,7 +8,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const page = readFileSync(fileURLToPath(new URL('../src/app/withdrawals/page.tsx', import.meta.url)), 'utf8')
+const page = readFileSync(fileURLToPath(new URL('../src/app/(admin)/withdrawals/page.tsx', import.meta.url)), 'utf8')
 const SRC = fileURLToPath(new URL('../src', import.meta.url))
 const sources = (dir) => readdirSync(dir).flatMap((n) => {
   const p = join(dir, n)

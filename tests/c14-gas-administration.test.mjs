@@ -91,18 +91,18 @@ test('C14-08 Gas navigation: overview, suppliers, supplier then direct orders, s
   const gas = nav.slice(nav.indexOf("label: 'Gas'"), nav.indexOf("label: 'Finance'"))
   const hrefs = [...gas.matchAll(/href: '([^']+)'/g)].map((m) => m[1])
   assert.deepEqual(hrefs, ['/gas', '/gas-suppliers', '/gas-supplier-orders', '/gas-orders', '/gas-settlement', '/gas-supplier-payouts', '/gas-configuration'])
-  for (const r of ['gas', 'gas-configuration']) assert.ok(read(`src/app/${r}/page.tsx`).length > 0)
+  for (const r of ['gas', 'gas-configuration']) assert.ok(read(`src/app/(admin)/${r}/page.tsx`).length > 0)
 })
 
 test('C14-09 the master switches are only read in the dashboard, never written', () => {
-  for (const f of ['src/components/features/gas-suppliers/GasSwitches.tsx', 'src/app/gas/page.tsx', 'src/app/gas-configuration/page.tsx']) {
+  for (const f of ['src/components/features/gas-suppliers/GasSwitches.tsx', 'src/app/(admin)/gas/page.tsx', 'src/app/(admin)/gas-configuration/page.tsx']) {
     const src = read(f)
     assert.doesNotMatch(src, /setDoc|updateDoc|deleteDoc|writeBatch|runTransaction|httpsCallable/, f)
   }
 })
 
 test('C14-10 the settlement page keeps every section, now under tabs', () => {
-  const src = read('src/app/gas-settlement/page.tsx')
+  const src = read('src/app/(admin)/gas-settlement/page.tsx')
   for (const t of ['Daily statements', 'Driver payments', 'Ledger by order', 'Outstanding debts', 'Commission terms']) assert.ok(src.includes(`<Card title="${t}"`), t)
   for (const id of ['statements', 'ledger', 'debts', 'terms']) assert.ok(src.includes(`<TabPanel id="${id}"`), id)
 })

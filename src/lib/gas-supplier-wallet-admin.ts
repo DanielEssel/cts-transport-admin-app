@@ -234,6 +234,16 @@ export const WALLET_REFUSALS: Record<string, string> = {
   withdrawal_not_sent: 'The payment could not be sent, so nothing left CTSGo. It stays approved: send it again later, or reject it.',
   withdrawal_processing: 'The payment was sent to Bridge. Confirm it as paid or failed instead.',
   wallet_mismatch: 'The wallet does not hold this withdrawal. Investigate before going on.',
+  // The rest of what gas_supplier_wallet.js refuses with (withdrawal_{status} for a finished or moved withdrawal).
+  withdrawal_approved: 'This withdrawal was already approved. Refresh to see where it is.',
+  withdrawal_paid: 'This withdrawal is already recorded as paid. Nothing was changed.',
+  withdrawal_rejected: 'This withdrawal was already rejected. Nothing was changed.',
+  withdrawal_failed: 'This withdrawal was already recorded as failed. Nothing was changed.',
+  withdrawal_pending: 'This withdrawal has not been sent yet: approve or reject it instead.',
+  withdrawal_not_found: 'Withdrawal not found. Refresh the list.',
+  wallet_unreconciled: "This supplier's wallet does not reconcile. Withdrawals are paused until it is investigated.",
+  invalid_outcome: 'The result must be paid or failed.',
+  invalid_request: 'Invalid request. Refresh and try again.',
 }
 
 /**
@@ -262,5 +272,63 @@ export function payoutSettingsView(s: Record<string, unknown> | null | undefined
   return {
     enabled: s?.enabled === true,
     limits: ok ? { minPesewas: min as number, maxPesewas: max as number, dailyPesewas: daily as number } : null,
+  }
+}
+
+/**
+ * The deployed callable and exact payload for a withdrawal action
+ * (gas_supplier_wallet.js readIds allowlists): approve sends only the IDs;
+ * reject adds the reason; confirm adds the outcome and the payment reference
+ * (paid) or the reason (failed). Nothing else is ever sent.
+ */
+export function withdrawalCall(action: WithdrawalAction, ids: { supplierId: string; withdrawalId: string }, f: { reason?: string; paymentReference?: string }):
+  { name: 'adminApproveGasSupplierWithdrawal' | 'adminRejectGasSupplierWithdrawal' | 'adminConfirmGasSupplierWithdrawal'; data: Record<string, string> } {
+  const base = { supplierId: ids.supplierId, withdrawalId: ids.withdrawalId }
+  switch (action) {
+    case 'approve': return { name: 'adminApproveGasSupplierWithdrawal', data: base }
+    case 'reject': return { name: 'adminRejectGasSupplierWithdrawal', data: { ...base, reason: (f.reason ?? '').trim() } }
+    case 'confirm_paid': return { name: 'adminConfirmGasSupplierWithdrawal', data: { ...base, outcome: 'paid', paymentReference: (f.paymentReference ?? '').trim() } }
+    case 'confirm_failed': return { name: 'adminConfirmGasSupplierWithdrawal', data: { ...base, outcome: 'failed', reason: (f.reason ?? '').trim() } }
+  }
+}
+
+/**
+ * What the admin is told after a successful call. Approval only hands the
+ * payment to Bridge: it never says paid. Paid is said only after the admin
+ * recorded Bridge's confirmation (confirm_paid).
+ */
+export function withdrawalSuccessMessage(action: WithdrawalAction, result: { bridgeOutcome?: unknown } | null | undefined): string {
+  switch (action) {
+    case 'approve': return result?.bridgeOutcome === 'accepted'
+      ? 'Sent to Bridge, which accepted the request. Not paid yet: confirm it once Bridge shows the payment completed.'
+      : 'Sent to Bridge, but Bridge did not confirm it. Not paid yet: check with Bridge and record the result; never send it again.'
+    case 'reject': return "Rejected. Nothing was sent; the amount is back in the supplier's available balance."
+    case 'confirm_paid': return "Recorded as paid with Bridge's reference."
+    case 'confirm_failed': return "Recorded as failed. The amount is back in the supplier's available balance."
+  }
+}
+
+/** A refused or failed call as the admin should read it: the server's reason when known, else its message. */
+export function withdrawalCallError(e: unknown): string {
+  const err = e as { code?: unknown; message?: unknown; details?: { reason?: unknown } } | null
+  const reason = err?.details?.reason
+  if (typeof reason === 'string' && WALLET_REFUSALS[reason]) return WALLET_REFUSALS[reason]
+  const code = String(err?.code ?? '').replace(/^functions\//, '')
+  if (code === 'permission-denied') return 'Only an active super admin can do this. Nothing was changed.'
+  if (code === 'unauthenticated') return 'Your session has ended. Sign in again; nothing was changed.'
+  return typeof err?.message === 'string' && err.message ? err.message : 'The request failed. Nothing is assumed to have changed: refresh before trying again.'
+}
+
+/**
+ * One financial request at a time from one screen: tryStart() is false while
+ * another is still running, so a double click or a repeated submit never
+ * sends a second call. The server refuses repeats as well.
+ */
+export function createRequestGuard() {
+  let running = false
+  return {
+    tryStart(): boolean { if (running) return false; running = true; return true },
+    end(): void { running = false },
+    get running(): boolean { return running },
   }
 }

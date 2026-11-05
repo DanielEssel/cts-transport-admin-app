@@ -279,6 +279,24 @@ export type StatementPayoutAction = 'credit_driver_wallet' | 'review_old_supplie
  * action (it must never be sent again). Commission statements and statements
  * with nothing to pay offer none.
  */
+/**
+ * What "Post entitlements" did (adminPostGasSupplierEntitlements). Posting a
+ * delivered order whose payment is captured also credits a CTSGo driver's or
+ * linked rider's delivery fee to their CTSGo wallet in the same step; it is
+ * never a Mobile Money payout. A repeat posts and credits nothing.
+ */
+export function postEntitlementsMessage(r: { posted?: unknown; alreadyPosted?: unknown; driverCredit?: { credited?: unknown; amountPesewas?: unknown; reason?: unknown } | null } | null | undefined): string {
+  if (r?.alreadyPosted === true) return 'Already posted. Nothing was posted or credited again.'
+  if (r?.posted !== true) return 'Not posted. Refresh the order and check its alerts.'
+  const c = r.driverCredit
+  if (!c) return "Ledger entries posted. No driver wallet credit: the supplier's own rider delivered, or the payment is not captured yet."
+  if (c.credited === true) {
+    return `Ledger entries posted, and the driver's delivery fee${isPesewas(c.amountPesewas) ? ` (${formatPesewas(c.amountPesewas as number)})` : ''} was credited to their CTSGo wallet. No Mobile Money was sent.`
+  }
+  if (c.reason === 'driver_not_found') return 'Ledger entries posted. The driver record is missing, so the fee was not credited; an alert was raised.'
+  return 'Ledger entries posted. The delivery fee is zero, so nothing was credited.'
+}
+
 export function statementPayoutAction(s: { party?: string; status?: string; netPesewas?: unknown; payoutStatus?: string; payout?: { outcome?: string } | null }): StatementPayoutAction | null {
   const payable = s.status === 'prepared' && isPesewas(s.netPesewas) && (s.netPesewas as number) > 0
   if (s.party === 'supplier') return s.payoutStatus === 'payout_in_progress' ? 'review_old_supplier_payout' : null

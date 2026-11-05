@@ -95,15 +95,18 @@ test('C15-06 limits read as the server reads them; anything missing shows Not se
 })
 
 test('C15-07 the dashboard calls only the three withdrawal callables, sends no money itself, and writes no switch or wallet', () => {
-  for (const f of ['src/app/gas-settlement/page.tsx', 'src/app/gas-supplier-payouts/page.tsx', 'src/app/gas/page.tsx', 'src/lib/gas-supplier-ops.ts']) {
+  for (const f of ['src/app/(admin)/gas-settlement/page.tsx', 'src/app/(admin)/gas-supplier-payouts/page.tsx', 'src/app/(admin)/gas/page.tsx', 'src/lib/gas-supplier-ops.ts']) {
     const src = read(f)
     assert.doesNotMatch(src, /adminApproveGasSupplierPayout|adminResolveGasSupplierPayout|send_mobile_money/, f)
     assert.doesNotMatch(src, /initiateBridgePayout|make_payment|supplierRequestGasWithdrawal/, f)
   }
-  const payouts = read('src/app/gas-supplier-payouts/page.tsx')
+  const payouts = read('src/app/(admin)/gas-supplier-payouts/page.tsx')
   assert.doesNotMatch(payouts, /setDoc|updateDoc|deleteDoc|addDoc|writeBatch|runTransaction/)
-  const calls = [...payouts.matchAll(/httpsCallable\(functions, '([^']+)'\)/g)].map((m) => m[1]).sort()
-  assert.deepEqual(calls, ['adminApproveGasSupplierWithdrawal', 'adminConfirmGasSupplierWithdrawal', 'adminRejectGasSupplierWithdrawal'])
+  // Every call goes through withdrawalCall (C17 checks each name and payload); no other callable is named.
+  assert.deepEqual([...payouts.matchAll(/httpsCallable\(functions, ([^)]+)\)/g)].map((m) => m[1]), ['call.name'])
+  const ids = { supplierId: 's', withdrawalId: 'w' }
+  const calls = ['approve', 'reject', 'confirm_paid', 'confirm_failed'].map((a) => w.withdrawalCall(a, ids, {}).name)
+  assert.deepEqual([...new Set(calls)].sort(), ['adminApproveGasSupplierWithdrawal', 'adminConfirmGasSupplierWithdrawal', 'adminRejectGasSupplierWithdrawal'])
   // No second approver, independent verifier or recipient verification remains.
   assert.doesNotMatch(payouts, /GasSupplierRecipient|verifier|Resolve/)
   // Actions are offered to super admins only (the server checks again).
@@ -118,7 +121,7 @@ test('C15-08 audit queries filter on exactly the actions the rules let admins re
   const body = rules.slice(rules.indexOf('function gasWalletAuditActions()'), rules.indexOf(']', rules.indexOf('function gasWalletAuditActions()')))
   const inRules = [...body.matchAll(/'([a-z_]+)'/g)].map((m) => m[1])
   assert.deepEqual([...w.WALLET_AUDIT_ACTIONS].sort(), inRules.sort())
-  const page = read('src/app/gas-supplier-payouts/page.tsx')
+  const page = read('src/app/(admin)/gas-supplier-payouts/page.tsx')
   const reads = [...page.matchAll(/collection\(db, 'audit_log'\)[\s\S]{0,200}?\)\)\)/g)]
   assert.equal(reads.length, 1)
   for (const m of reads) assert.match(m[0], /where\('action', 'in'/, 'every audit read filters on the action')

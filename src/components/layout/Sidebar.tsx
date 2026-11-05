@@ -2,7 +2,7 @@
 // Grouped admin navigation (nav.ts). The pending-driver badge counts the
 // drivers on the Drivers page's "Pending" tab (lib/driver-status.ts).
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { LogOut, X } from "lucide-react";
@@ -18,6 +18,21 @@ export function Sidebar({ onClose }: SidebarProps) {
   const { signOut } = useAuth();
   const router = useRouter();
   const [pendingDrivers, setPendingDrivers] = useState(0);
+  const asideRef = useRef<HTMLElement>(null);
+
+  // The shell (and this sidebar) stays mounted while navigating, so the
+  // scroll position carries over by itself. On first mount (a refresh, a
+  // direct link, the mobile menu opening) show the active link if it is
+  // below the fold.
+  useEffect(() => {
+    const aside = asideRef.current;
+    const link = aside?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!aside || !link) return;
+    const top = link.offsetTop, bottom = top + link.offsetHeight;
+    if (top < aside.scrollTop || bottom > aside.scrollTop + aside.clientHeight) {
+      aside.scrollTop = Math.max(0, top - aside.clientHeight / 2);
+    }
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -40,6 +55,7 @@ export function Sidebar({ onClose }: SidebarProps) {
 
   return (
     <aside
+      ref={asideRef}
       style={{
         width: "248px", height: "calc(100vh - var(--banner-h, 0px))", background: "var(--sidebar-bg)",
         borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column",

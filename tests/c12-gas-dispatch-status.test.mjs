@@ -73,7 +73,7 @@ test('no portal address: the portal and integrations lines say so', () => {
 })
 
 test('the supplier page shows the derived status, not the old hard-coded notice', () => {
-  const page = readFileSync(fileURLToPath(new URL('../src/app/gas-suppliers/[id]/page.tsx', import.meta.url)), 'utf8')
+  const page = readFileSync(fileURLToPath(new URL('../src/app/(admin)/gas-suppliers/[id]/page.tsx', import.meta.url)), 'utf8')
   assert.doesNotMatch(page, /does not use suppliers yet|supplier dispatch is built and released/)
   assert.match(page, /<DispatchStatus supplierId=\{supplier\.id\} ordersEnabled=\{supplier\.ordersEnabled === true\} readiness=\{readiness\} \/>/)
 })
