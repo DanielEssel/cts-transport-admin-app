@@ -25,9 +25,9 @@ function sourceFiles(dir) {
 // The withdrawals page is no longer listed: it calls the audited server
 // functions and may contain no direct write at all (c5 tests the workflow).
 const GUARDED = {
-  'src/app/passengers/page.tsx': { handleWalletAction: 'walletAdjustment' },
-  'src/app/trips/page.tsx': { handleFareOverride: 'tripFareOverride' },
-  'src/app/drivers/page.tsx': { handleSuspend: 'driverSuspension', handleUnsuspend: 'driverSuspension' },
+  'src/app/(admin)/passengers/page.tsx': { handleWalletAction: 'walletAdjustment' },
+  'src/app/(admin)/trips/page.tsx': { handleFareOverride: 'tripFareOverride' },
+  'src/app/(admin)/drivers/page.tsx': { handleSuspend: 'driverSuspension', handleUnsuspend: 'driverSuspension' },
 }
 
 test('the freeze module freezes the three remaining actions with the exact message', async () => {
@@ -78,9 +78,9 @@ test('no unsafe money or approval write exists outside a guarded handler (no alt
 
 test('every entry button for a frozen action is disabled with the message', () => {
   const expected = [
-    ['src/app/passengers/page.tsx', 'walletAdjustment', 1],
-    ['src/app/trips/page.tsx', 'tripFareOverride', 1],
-    ['src/app/drivers/page.tsx', 'driverSuspension', 2],
+    ['src/app/(admin)/passengers/page.tsx', 'walletAdjustment', 1],
+    ['src/app/(admin)/trips/page.tsx', 'tripFareOverride', 1],
+    ['src/app/(admin)/drivers/page.tsx', 'driverSuspension', 2],
     ['src/components/features/DriverDetailModal.tsx', 'driverSuspension', 2], // Suspend, and Unsuspend for a suspended driver
   ]
   for (const [file, action, n] of expected) {
@@ -94,9 +94,9 @@ test('every entry button for a frozen action is disabled with the message', () =
 
 test('each affected page shows the visible notice', () => {
   for (const [file, action] of [
-    ['src/app/passengers/page.tsx', 'walletAdjustment'],
-    ['src/app/trips/page.tsx', 'tripFareOverride'],
-    ['src/app/drivers/page.tsx', 'driverSuspension'],
+    ['src/app/(admin)/passengers/page.tsx', 'walletAdjustment'],
+    ['src/app/(admin)/trips/page.tsx', 'tripFareOverride'],
+    ['src/app/(admin)/drivers/page.tsx', 'driverSuspension'],
   ]) {
     assert.match(read(file), new RegExp(`isFrozen\\('${action}'\\) && <FrozenActionNotice`), file)
   }
@@ -105,7 +105,7 @@ test('each affected page shows the visible notice', () => {
 })
 
 test('out of scope: driver approve/reject still use the server callable', () => {
-  const src = read('src/app/drivers/page.tsx')
+  const src = read('src/app/(admin)/drivers/page.tsx')
   assert.equal(src.split("httpsCallable(functions, 'approveDriver')").length - 1, 2)
   assert.doesNotMatch(src, /const handleApprove = async \(\) => \{\s*\n\s*if \(isFrozen/)
 })

@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 const { matchesGasFilter } = await import('../src/lib/gas-order-filters.ts')
-const page = readFileSync(fileURLToPath(new URL('../src/app/gas-orders/page.tsx', import.meta.url)), 'utf8')
+const page = readFileSync(fileURLToPath(new URL('../src/app/(admin)/gas-orders/page.tsx', import.meta.url)), 'utf8')
 
 test('a pendingApproval order appears under Pending', () => {
   assert.equal(matchesGasFilter('pendingApproval', 'pendingApproval'), true)
